@@ -1,30 +1,48 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Users, Calendar, Bell,
   Search, DollarSign, UserPlus, ArrowUpRight,
   CheckCircle2, XCircle, Activity
 } from 'lucide-react';
-
-const stats = [
-  { label: 'Total Members', value: '542', change: '+12%', icon: Users, color: 'text-teal-500', bg: 'bg-teal-50' },
-  { label: 'Event Revenue', value: '$4,250', change: '+8%', icon: DollarSign, color: 'text-blue-500', bg: 'bg-blue-50' },
-  { label: 'Active Events', value: '8', change: '0%', icon: Calendar, color: 'text-amber-500', bg: 'bg-amber-50' },
-  { label: 'Pending Apps', value: '14', change: '+3', icon: UserPlus, color: 'text-rose-500', bg: 'bg-rose-50' },
-];
-
-const pendingApplications = [
-  { id: 1, name: 'Sarah Miller', type: 'Professional', date: '2h ago', status: 'Pending' },
-  { id: 2, name: 'David Chen', type: 'Student', date: '5h ago', status: 'Pending' },
-  { id: 3, name: 'Robert Wilson', type: 'Corporate', date: '1d ago', status: 'In Review' },
-];
-
-const recentActivity = [
-  { id: 1, user: 'Admin_John', action: 'Approved membership', target: 'Elena R.', time: '10m ago' },
-  { id: 2, user: 'System', action: 'Auto-archived event', target: 'Spring Workshop', time: '1h ago' },
-  { id: 3, user: 'Admin_Sarah', action: 'Uploaded resource', target: 'Basin_Analysis.pdf', time: '3h ago' },
-];
+import api from '../../api';
 
 export default function AdminDashboard() {
+  const [statsData, setStatsData] = useState(null);
+  const [pendingApps, setPendingApps] = useState([]);
+  const [recentLog, setRecentLog] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        // Fetch stats
+        const { data: statsRes } = await api.get('/admin/stats');
+        setStatsData(statsRes.data);
+
+        // Fetch pending apps
+        const { data: membersRes } = await api.get('/members?status=pending&limit=5');
+        setPendingApps(membersRes.data || []);
+
+        // Fetch audit logs
+        const { data: auditRes } = await api.get('/admin/audit?limit=5');
+        setRecentLog(auditRes.data || []);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
+
+  const stats = [
+    { label: 'Total Members', value: statsData?.total_members || 0, change: '+12%', icon: Users, color: 'text-teal-500', bg: 'bg-teal-50' },
+    { label: 'Total Donations', value: `$${statsData?.total_donations || 0}`, change: '+8%', icon: DollarSign, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { label: 'Active Events', value: statsData?.active_events || 0, change: '0%', icon: Calendar, color: 'text-amber-500', bg: 'bg-amber-50' },
+    { label: 'Pending Apps', value: statsData?.pending_applications || 0, change: '+3', icon: UserPlus, color: 'text-rose-500', bg: 'bg-rose-50' },
+  ];
   return (
     <main className="flex-1 min-w-0 flex flex-col">
         
@@ -96,21 +114,25 @@ export default function AdminDashboard() {
                   <Link to="/admin/members" className="text-xs font-bold text-teal-600 hover:text-teal-700 transition-colors">View All Directory →</Link>
                 </div>
                 <div className="divide-y divide-slate-50">
-                  {pendingApplications.map((app) => (
+                  {loading ? (
+                    <div className="p-8 text-center text-slate-500 text-sm">Loading applications...</div>
+                  ) : pendingApps.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 text-sm">No pending applications.</div>
+                  ) : pendingApps.map((app) => (
                     <div key={app.id} className="px-8 py-5 flex items-center justify-between hover:bg-slate-50 transition-colors group">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:bg-teal-100 group-hover:text-teal-600 transition-all">
-                          {app.name.charAt(0)}
+                          {app.first_name?.charAt(0) || 'U'}
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-slate-900">{app.name}</div>
-                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{app.type} Membership</div>
+                          <div className="text-sm font-bold text-slate-900">{app.first_name} {app.last_name}</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{app.member_type} Membership</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-6">
                         <div className="text-right hidden sm:block">
                           <div className="text-xs font-bold text-slate-700">{app.status}</div>
-                          <div className="text-[10px] text-slate-400">{app.date}</div>
+                          <div className="text-[10px] text-slate-400">{new Date(app.created_at).toLocaleDateString()}</div>
                         </div>
                         <div className="flex gap-2">
                           <button className="p-2 bg-teal-50 text-teal-600 rounded-lg hover:bg-teal-500 hover:text-white transition-all"><CheckCircle2 className="w-4 h-4" /></button>
@@ -157,7 +179,11 @@ export default function AdminDashboard() {
                   <Activity className="w-5 h-5 text-teal-500" /> Recent Actions
                 </h2>
                 <div className="space-y-6">
-                  {recentActivity.map((log) => (
+                  {loading ? (
+                    <div className="text-center text-slate-500 text-sm">Loading activity...</div>
+                  ) : recentLog.length === 0 ? (
+                    <div className="text-center text-slate-500 text-sm">No recent activity.</div>
+                  ) : recentLog.map((log) => (
                     <div key={log.id} className="flex gap-4 relative">
                       <div className="w-px bg-slate-100 absolute left-2 top-8 bottom-[-24px] last:hidden" />
                       <div className="w-4 h-4 rounded-full bg-teal-500/20 flex items-center justify-center flex-shrink-0 mt-1">
@@ -165,9 +191,11 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <p className="text-xs text-slate-800 leading-snug">
-                          <span className="font-bold">{log.user}</span> {log.action} <span className="font-bold text-teal-600">{log.target}</span>
+                          <span className="font-bold">{log.user_email || 'System'}</span> {log.action} <span className="font-bold text-teal-600">{log.target || ''}</span>
                         </p>
-                        <p className="text-[10px] text-slate-400 mt-1 font-bold uppercase tracking-widest">{log.time}</p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-bold uppercase tracking-widest">
+                          {new Date(log.created_at).toLocaleString()}
+                        </p>
                       </div>
                     </div>
                   ))}
