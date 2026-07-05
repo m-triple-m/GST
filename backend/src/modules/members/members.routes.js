@@ -28,9 +28,9 @@ router.get('/me/events', verifyToken, ctrl.getMyEvents);
 
 // ── Admin ─────────────────────────────────────────────────
 // GET    /api/members
-router.get('/', verifyToken, requireRole('admin'), listQueryValidation, ctrl.listMembers);
+router.get('/', verifyToken, requireRole('admin', 'executive'), listQueryValidation, ctrl.listMembers);
 // GET    /api/members/:id
-router.get('/:id', verifyToken, requireRole('admin'), ctrl.getMemberById);
+router.get('/:id', verifyToken, requireRole('admin', 'executive'), ctrl.getMemberById);
 // PATCH  /api/members/:id/status
 router.patch('/:id/status', verifyToken, requireRole('admin'), updateStatusValidation, ctrl.updateMemberStatus);
 // PATCH  /api/members/:id/executive

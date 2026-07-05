@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Calendar, MapPin, Clock, Users, Tag, Search,
   Filter, ChevronRight, ExternalLink, Loader2
@@ -17,9 +17,21 @@ const colorMap = {
 };
 
 export default function EventsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [activeStatus, setActiveStatus] = useState('All');
+  
+  const statusParam = searchParams.get('status');
+  const activeStatus = statusParam ? statusParam.charAt(0).toUpperCase() + statusParam.slice(1) : 'All';
+
+  const setActiveStatus = (status) => {
+    if (status === 'All') {
+      searchParams.delete('status');
+    } else {
+      searchParams.set('status', status.toLowerCase());
+    }
+    setSearchParams(searchParams);
+  };
   
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -278,7 +278,7 @@ export default function NewsAndEvents() {
         {activeTab === 'events' && (
           <div className="animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              {events.map((event) => (
+              {[...events].sort((a, b) => new Date(b.date) - new Date(a.date)).map((event) => (
                 <EventCard key={event.id} event={event} featured={event.featured} />
               ))}
             </div>

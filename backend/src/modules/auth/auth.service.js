@@ -4,6 +4,7 @@ const jwt      = require('jsonwebtoken');
 const config   = require('../../config/env');
 const ApiError = require('../../utils/ApiError');
 const repo     = require('./auth.repository');
+const mailer   = require('../../services/mailer.service');
 
 // ── Token helpers ────────────────────────────────────────
 
@@ -103,4 +104,40 @@ const changePassword = async (userId, currentPassword, newPassword) => {
   await repo.updateUserPassword(userId, newHash);
 };
 
-module.exports = { register, login, refreshAccessToken, logout, logoutAll, changePassword };
+// ── OTP-based Password Reset ───────────────────────────────
+
+const requestPasswordReset = async (email) => {
+  const user = await repo.findUserByEmail(email);
+  // Always respond with success to avoid email enumeration attacks
+  if (!user) return;
+
+  // 6-digit numeric OTP, expires in 10 minutes
+  const otpCode  = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiry   = new Date(Date.now() + 10 * 60 * 1000)
+    .toISOString().slice(0, 19).replace('T', ' ');
+
+  await repo.createOtp(email, otpCode, expiry);
+  await mailer.sendPasswordResetOtpEmail(email, otpCode);
+};
+
+const verifyOtp = async (email, otpCode) => {
+  const otp = await repo.findValidOtp(email, otpCode);
+  if (!otp) throw ApiError.badRequest('Invalid or expired OTP');
+  return true;
+};
+
+const resetPasswordWithOtp = async (email, otpCode, newPassword) => {
+  const otp = await repo.findValidOtp(email, otpCode);
+  if (!otp) throw ApiError.badRequest('Invalid or expired OTP. Please request a new one.');
+
+  const user = await repo.findUserByEmail(email);
+  if (!user) throw ApiError.notFound('User not found');
+
+  const newHash = await bcrypt.hash(newPassword, config.bcryptSaltRounds);
+  await repo.updateUserPassword(user.id, newHash);
+  await repo.markOtpUsed(otp.id);
+  // Revoke all sessions for security
+  await repo.deleteAllUserRefreshTokens(user.id);
+};
+
+module.exports = { register, login, refreshAccessToken, logout, logoutAll, changePassword, requestPasswordReset, verifyOtp, resetPasswordWithOtp };

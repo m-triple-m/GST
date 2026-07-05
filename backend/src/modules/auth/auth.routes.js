@@ -26,4 +26,14 @@ router.get('/me', verifyToken, controller.me);
 // PUT  /api/auth/change-password
 router.put('/change-password', verifyToken, changePasswordValidation, controller.changePassword);
 
+// ── OTP-based Password Reset (public) ─────────────────────
+// POST /api/auth/forgot-password
+router.post('/forgot-password', controller.forgotPassword);
+
+// POST /api/auth/verify-otp
+router.post('/verify-otp', controller.verifyOtp);
+
+// POST /api/auth/reset-password
+router.post('/reset-password', controller.resetPassword);
+
 module.exports = router;

@@ -1,12 +1,27 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Link2, Briefcase, Building, Loader2, Save, CheckCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { User, Mail, Phone, Link2, Briefcase, Building, Loader2, Save, CheckCircle, KeyRound, ShieldCheck, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import api from '../../api';
+import { useAuth } from '../../context/AuthContext';
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // ── Password reset via OTP ─────────────────────────────
+  const [pwStep, setPwStep] = useState('idle'); // 'idle' | 'otp_sent' | 'verify' | 'new_pw' | 'done'
+  const [pwOtp, setPwOtp] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [showPwNew, setShowPwNew] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
+  // ─────────────────────────────────────────────────────
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -68,6 +83,7 @@ export default function SettingsPage() {
       });
       setFormData(prev => ({ ...prev, avatar_url: data.data?.avatar_url || prev.avatar_url }));
       setSuccess('Avatar uploaded successfully.');
+      window.dispatchEvent(new Event('profileUpdated'));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to upload avatar.');
     } finally {
@@ -92,6 +108,7 @@ export default function SettingsPage() {
         avatar_url: formData.avatar_url,
       });
       setSuccess('Profile updated successfully.');
+      window.dispatchEvent(new Event('profileUpdated'));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update profile.');
     } finally {
@@ -281,6 +298,152 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* ── Password Reset Card ── */}
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 mt-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+              <KeyRound className="w-5 h-5 text-teal-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-800">Change Password</h2>
+              <p className="text-xs text-slate-500">We'll send a one-time code to your email to verify it's you.</p>
+            </div>
+          </div>
+
+          {pwError && (
+            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-700 font-medium">{pwError}</div>
+          )}
+          {pwSuccess && (
+            <div className="mb-4 p-3 rounded-xl bg-teal-50 border border-teal-200 text-sm text-teal-700 font-medium flex items-center gap-2"><CheckCircle className="w-4 h-4" />{pwSuccess}</div>
+          )}
+
+          {/* Idle: show Send OTP button */}
+          {pwStep === 'idle' && (
+            <button
+              id="send-reset-otp-btn"
+              onClick={async () => {
+                setPwLoading(true); setPwError(''); setPwSuccess('');
+                try {
+                  await api.post('/auth/forgot-password', { email: user?.email || formData.email });
+                  setPwStep('verify');
+                } catch (e) {
+                  setPwError(e.response?.data?.message || 'Failed to send OTP.');
+                } finally { setPwLoading(false); }
+              }}
+              disabled={pwLoading}
+              className="btn-teal px-6 py-3 rounded-xl font-bold text-white flex items-center gap-2 shadow shadow-teal-500/20"
+            >
+              {pwLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+              Send OTP to my Email
+            </button>
+          )}
+
+          {/* Verify OTP then set new password */}
+          {pwStep === 'verify' && (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600">A 6-digit code was sent to <span className="font-semibold text-teal-600">{user?.email || formData.email}</span>. Enter it below.</p>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Enter OTP</label>
+                <div className="flex gap-2">
+                  <input
+                    id="pw-otp-input"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={pwOtp}
+                    onChange={(e) => setPwOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="flex-1 text-center text-2xl font-black tracking-[0.4em] py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                    placeholder="――――――"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setPwLoading(true);
+                      try { await api.post('/auth/forgot-password', { email: user?.email || formData.email }); }
+                      catch { /* silent */ } finally { setPwLoading(false); }
+                    }}
+                    className="px-3 py-2 rounded-xl border border-slate-200 text-slate-500 hover:border-teal-400 hover:text-teal-600 transition-all"
+                    title="Resend OTP"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${pwLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">New Password</label>
+                <div className="relative">
+                  <input
+                    id="pw-new"
+                    type={showPwNew ? 'text' : 'password'}
+                    value={pwNew}
+                    onChange={(e) => setPwNew(e.target.value)}
+                    className="w-full pr-12 pl-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                    placeholder="Minimum 8 characters"
+                    minLength={8}
+                  />
+                  <button type="button" onClick={() => setShowPwNew(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-500">
+                    {showPwNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    id="pw-confirm"
+                    type={showPwConfirm ? 'text' : 'password'}
+                    value={pwConfirm}
+                    onChange={(e) => setPwConfirm(e.target.value)}
+                    className={`w-full pr-12 pl-4 py-3 rounded-xl border focus:ring-2 focus:ring-teal-500/20 outline-none transition-all ${
+                      pwConfirm && pwConfirm !== pwNew ? 'border-rose-400 focus:border-rose-400' : 'border-slate-200 focus:border-teal-500'
+                    }`}
+                    placeholder="Re-enter new password"
+                  />
+                  <button type="button" onClick={() => setShowPwConfirm(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-teal-500">
+                    {showPwConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {pwConfirm && pwConfirm !== pwNew && (
+                  <p className="text-xs text-rose-500">Passwords do not match</p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  id="reset-pw-submit"
+                  disabled={pwLoading || pwOtp.length !== 6 || !pwNew || pwNew !== pwConfirm}
+                  onClick={async () => {
+                    if (pwNew.length < 8) { setPwError('Password must be at least 8 characters.'); return; }
+                    setPwLoading(true); setPwError('');
+                    try {
+                      await api.post('/auth/reset-password', { email: user?.email || formData.email, otp: pwOtp, newPassword: pwNew });
+                      setPwSuccess('Password updated! All other sessions have been logged out.');
+                      setPwStep('idle'); setPwOtp(''); setPwNew(''); setPwConfirm('');
+                    } catch (e) {
+                      setPwError(e.response?.data?.message || 'Failed to reset password.');
+                    } finally { setPwLoading(false); }
+                  }}
+                  className="btn-teal px-6 py-3 rounded-xl font-bold text-white flex items-center gap-2 shadow shadow-teal-500/20 disabled:opacity-50"
+                >
+                  {pwLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                  Update Password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPwStep('idle'); setPwOtp(''); setPwNew(''); setPwConfirm(''); setPwError(''); }}
+                  className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

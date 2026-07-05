@@ -16,7 +16,7 @@ const memberItems = [
 // Extra items for executive + admin only
 const executiveItems = [
   { name: 'Manage Events', icon: Calendar, path: '/dashboard/manage-events' },
-  { name: 'All Members', icon: Users, path: '/members' },
+  { name: 'All Members', icon: Users, path: '/dashboard/members' },
 ];
 
 /**
@@ -30,11 +30,16 @@ export default function DashboardLayout() {
   const { user, logout } = useAuth();
 
   useEffect(() => {
-    import('../api').then(({ default: api }) => {
-      api.get('/members/me')
-        .then(res => setProfile(res.data.data))
-        .catch(err => console.error('Failed to load profile for dashboard header', err));
-    });
+    const fetchProfile = () => {
+      import('../api').then(({ default: api }) => {
+        api.get('/members/me')
+          .then(res => setProfile(res.data.data))
+          .catch(err => console.error('Failed to load profile for dashboard header', err));
+      });
+    };
+    fetchProfile();
+    window.addEventListener('profileUpdated', fetchProfile);
+    return () => window.removeEventListener('profileUpdated', fetchProfile);
   }, []);
 
   const isExecutive = user?.role === 'executive' || user?.role === 'admin';

@@ -76,6 +76,29 @@ const findUserByIdWithHash = async (id) => {
   return rows[0] || null;
 };
 
+// ── Password Reset OTPs ─────────────────────────────────
+
+const createOtp = async (email, otpCode, expiresAt) => {
+  // Invalidate any prior OTPs for this email first
+  await db.execute('UPDATE password_reset_otps SET used = 1 WHERE email = ?', [email]);
+  await db.execute(
+    'INSERT INTO password_reset_otps (email, otp_code, expires_at) VALUES (?, ?, ?)',
+    [email, otpCode, expiresAt]
+  );
+};
+
+const findValidOtp = async (email, otpCode) => {
+  const [rows] = await db.execute(
+    'SELECT * FROM password_reset_otps WHERE email = ? AND otp_code = ? AND used = 0 AND expires_at > NOW() LIMIT 1',
+    [email, otpCode]
+  );
+  return rows[0] || null;
+};
+
+const markOtpUsed = async (id) => {
+  await db.execute('UPDATE password_reset_otps SET used = 1 WHERE id = ?', [id]);
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -87,4 +110,7 @@ module.exports = {
   deleteRefreshToken,
   deleteAllUserRefreshTokens,
   updateUserPassword,
+  createOtp,
+  findValidOtp,
+  markOtpUsed,
 };

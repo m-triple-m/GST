@@ -50,7 +50,7 @@ const uploadAvatar = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'No image file provided' });
     }
     // file is saved in public/uploads/avatars/filename
-    const avatar_url = `http://localhost:5000/uploads/avatars/${req.file.filename}`;
+    const avatar_url = `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
     const data = await service.updateMyProfile(req.user.id, { avatar_url });
     sendSuccess(res, 200, 'Avatar updated', data);
   } catch (err) { next(err); }

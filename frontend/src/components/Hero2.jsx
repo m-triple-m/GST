@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowDown, Play, MapPin, Users, Calendar, Award } from 'lucide-react';
+import TerrainBackground from './TerrainBackground';
 
 const stats = [
   { value: '75+', label: 'Years of Service', icon: Award },
@@ -24,40 +25,20 @@ export default function Hero() {
 
   return (
     <section id="home" className="relative min-h-screen flex flex-col justify-center overflow-hidden">
-      {/* Hero background video */}
-      <div className="absolute inset-0 bg-slate-900">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover opacity-30 mix-blend-screen"
-        >
-          <source src="/assets/hero_video2.mp4" type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
-      </div>
-      {/* Seismic wave overlay */}
-      <div className="absolute inset-0 opacity-10">
-        <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" className="w-full h-full">
-          <path
-            d="M0,450 C120,400 180,500 300,450 C420,400 480,500 600,450 C720,400 780,500 900,450 C1020,400 1080,500 1200,450 C1320,400 1380,500 1440,450"
-            fill="none" stroke="#008080" strokeWidth="2" opacity="0.6"
-          />
-          <path
-            d="M0,420 C80,380 140,460 260,420 C380,380 440,460 560,420 C680,380 740,460 860,420 C980,380 1040,460 1160,420 C1280,380 1360,460 1440,420"
-            fill="none" stroke="#00a0a0" strokeWidth="1.5" opacity="0.4"
-          />
-          <path
-            d="M0,480 C160,520 220,440 340,480 C460,520 520,440 640,480 C760,520 820,440 940,480 C1060,520 1120,440 1240,480 C1360,520 1400,440 1440,480"
-            fill="none" stroke="#008080" strokeWidth="1" opacity="0.3"
-          />
-          {/* Earth strata lines */}
-          {[620, 660, 700, 740, 780, 820].map((y, i) => (
-            <line key={i} x1="0" y1={y} x2="1440" y2={y} stroke="#00a0a0" strokeWidth="0.5" opacity={0.1 + i * 0.02} strokeDasharray={i % 2 === 0 ? "8 4" : "4 8"} />
-          ))}
-        </svg>
-      </div>
+      {/* Base dark backdrop */}
+      <div className="absolute inset-0 bg-[#05080f]" />
+
+      {/* 3D animated topographic contour terrain */}
+      <TerrainBackground opacity={0.8} />
+
+      {/* Readability gradient over the terrain */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(115deg, rgba(5,8,15,0.94) 0%, rgba(5,8,15,0.78) 32%, rgba(5,8,15,0.35) 60%, rgba(5,8,15,0.55) 100%)',
+        }}
+      />
 
       {/* Floating particle dots */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -83,8 +64,9 @@ export default function Hero() {
         <div className="max-w-4xl">
           {/* Badge */}
           <div
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border border-teal-500/40 bg-teal-500/10 mb-8 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-              }`}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border border-teal-500/40 bg-teal-500/10 mb-8 transition-all duration-700 ${
+              visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
           >
             <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
             <span className="text-teal-300 text-xs font-semibold tracking-widest uppercase">
@@ -94,8 +76,9 @@ export default function Hero() {
 
           {/* Headline */}
           <h1
-            className={`text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 transition-all duration-700 delay-100 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-              }`}
+            className={`text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 transition-all duration-700 delay-100 ${
+              visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+            }`}
             style={{ animationDelay: '0.15s' }}
           >
             <span className="block">Geophysical</span>
@@ -105,8 +88,9 @@ export default function Hero() {
 
           {/* Subheading */}
           <p
-            className={`text-lg sm:text-xl text-slate-300 leading-relaxed max-w-2xl mb-10 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-              }`}
+            className={`text-lg sm:text-xl text-slate-300 leading-relaxed max-w-2xl mb-10 transition-all duration-700 ${
+              visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+            }`}
             style={{ transitionDelay: '0.25s' }}
           >
             In 1947, the Geophysical Society of Tulsa (GST) became the first section approved by the Society of Exploration Geophysicists. For over 75 years, we have enriched the geophysical community through regular meetings, technical talks, and professional events.
@@ -114,8 +98,9 @@ export default function Hero() {
 
           {/* CTA Buttons */}
           <div
-            className={`flex flex-wrap gap-4 mb-16 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-              }`}
+            className={`flex flex-wrap gap-4 mb-16 transition-all duration-700 ${
+              visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+            }`}
             style={{ transitionDelay: '0.35s' }}
           >
             <a
@@ -144,8 +129,9 @@ export default function Hero() {
 
           {/* Stats row */}
           <div
-            className={`grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-              }`}
+            className={`grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-700 ${
+              visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+            }`}
             style={{ transitionDelay: '0.45s' }}
           >
             {stats.map(({ value, label, icon: Icon }) => (

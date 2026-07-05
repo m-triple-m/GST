@@ -10,8 +10,8 @@ const navLinks = [
     label: 'Events', href: '/events',
     children: [
       { label: 'All Events', href: '/events' },
-      { label: 'Monthly Luncheons', href: '/events?type=luncheon' },
-      { label: 'Upcoming Events', href: '/events' },
+      { label: 'Upcoming Events', href: '/events?status=upcoming' },
+      { label: 'Past Events', href: '/events?status=past' },
     ]
   },
   { label: 'Membership', href: '/membership' },
@@ -59,7 +59,7 @@ export default function Navbar() {
         setTimeout(() => document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' }), 300);
       }
     } else {
-      navigate(href.split('?')[0]);
+      navigate(href);
     }
     setMobileOpen(false);
     setActiveDropdown(null);
