@@ -5,6 +5,7 @@ const config   = require('../../config/env');
 const ApiError = require('../../utils/ApiError');
 const repo     = require('./auth.repository');
 const mailer   = require('../../services/mailer.service');
+const crypto   = require('crypto');
 
 // ── Token helpers ────────────────────────────────────────
 
@@ -108,12 +109,11 @@ const changePassword = async (userId, currentPassword, newPassword) => {
 
 const requestPasswordReset = async (email) => {
   const user = await repo.findUserByEmail(email);
-  // Always respond with success to avoid email enumeration attacks
-  if (!user) return;
+  if (!user) throw ApiError.notFound('No account found with this email');
 
-  // 6-digit numeric OTP, expires in 10 minutes
-  const otpCode  = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiry   = new Date(Date.now() + 10 * 60 * 1000)
+  // 6-digit numeric OTP, expires in 5 minutes
+  const otpCode  = crypto.randomInt(100000, 999999).toString();
+  const expiry   = new Date(Date.now() + 5 * 60 * 1000)
     .toISOString().slice(0, 19).replace('T', ' ');
 
   await repo.createOtp(email, otpCode, expiry);

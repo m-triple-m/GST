@@ -67,18 +67,21 @@ const changePassword = async (req, res, next) => {
 
 const forgotPassword = async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return next(errors.array());
+
     const { email } = req.body;
-    if (!email) return next(ApiError.badRequest('Email is required'));
     await authService.requestPasswordReset(email);
-    // Always success — never confirm whether email exists
-    sendSuccess(res, 200, 'If that email is registered, an OTP has been sent.');
+    sendSuccess(res, 200, 'OTP sent successfully to your email.');
   } catch (err) { next(err); }
 };
 
 const verifyOtp = async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return next(errors.array());
+
     const { email, otp } = req.body;
-    if (!email || !otp) return next(ApiError.badRequest('Email and OTP are required'));
     await authService.verifyOtp(email, otp);
     sendSuccess(res, 200, 'OTP verified successfully');
   } catch (err) { next(err); }
@@ -86,9 +89,10 @@ const verifyOtp = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return next(errors.array());
+
     const { email, otp, newPassword } = req.body;
-    if (!email || !otp || !newPassword) return next(ApiError.badRequest('Email, OTP and new password are required'));
-    if (newPassword.length < 8) return next(ApiError.badRequest('Password must be at least 8 characters'));
     await authService.resetPasswordWithOtp(email, otp, newPassword);
     sendSuccess(res, 200, 'Password reset successfully. Please log in with your new password.');
   } catch (err) { next(err); }

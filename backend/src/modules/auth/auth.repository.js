@@ -47,7 +47,7 @@ const saveRefreshToken = async (userId, token, expiresAt) => {
 
 const findRefreshToken = async (token) => {
   const [rows] = await db.execute(
-    'SELECT * FROM refresh_tokens WHERE token = ? AND expires_at > NOW() LIMIT 1',
+    'SELECT * FROM refresh_tokens WHERE token = ? AND expires_at > UTC_TIMESTAMP() LIMIT 1',
     [token]
   );
   return rows[0] || null;
@@ -89,7 +89,7 @@ const createOtp = async (email, otpCode, expiresAt) => {
 
 const findValidOtp = async (email, otpCode) => {
   const [rows] = await db.execute(
-    'SELECT * FROM password_reset_otps WHERE email = ? AND otp_code = ? AND used = 0 AND expires_at > NOW() LIMIT 1',
+    'SELECT * FROM password_reset_otps WHERE email = ? AND otp_code = ? AND used = 0 AND expires_at > UTC_TIMESTAMP() LIMIT 1',
     [email, otpCode]
   );
   return rows[0] || null;

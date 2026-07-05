@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Globe, Menu, X, ChevronDown, LogIn, ShoppingCart } from 'lucide-react';
+import { Globe, Menu, X, ChevronDown, LogIn, ShoppingCart, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -36,7 +36,7 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === '/';
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const { itemCount } = useCart();
 
   useEffect(() => {
@@ -149,12 +149,21 @@ export default function Navbar() {
               Join GST
             </Link>
             {isAuthenticated ? (
-              <Link
-                to="/dashboard"
-                className="btn-teal flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-lg"
-              >
-                Dashboard
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/dashboard"
+                  className="btn-teal flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-lg"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors duration-200 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              </div>
             ) : (
               <Link
                 to="/login"
@@ -223,15 +232,33 @@ export default function Navbar() {
             <Link to="/membership" className="block w-full text-center px-4 py-3 text-sm font-medium text-teal-400 hover:bg-teal-500/10 rounded-lg transition-colors duration-200">
               Join GST
             </Link>
-            <Link
-              to="/login"
-              className="btn-teal flex items-center justify-center gap-2 w-full py-3 text-sm font-semibold text-white rounded-lg"
-            >
-              <span className="flex items-center gap-2">
-                <LogIn className="w-4 h-4" />
-                Member Portal
-              </span>
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="btn-teal flex items-center justify-center gap-2 w-full py-3 text-sm font-semibold text-white rounded-lg shadow-lg"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={logout}
+                  className="flex items-center justify-center gap-2 w-full py-3 text-sm font-semibold text-slate-300 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors duration-200 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="btn-teal flex items-center justify-center gap-2 w-full py-3 text-sm font-semibold text-white rounded-lg"
+              >
+                <span className="flex items-center gap-2">
+                  <LogIn className="w-4 h-4" />
+                  Member Portal
+                </span>
+              </Link>
+            )}
           </div>
         </div>
       </div>

@@ -118,7 +118,7 @@ You requested a password reset for your GST Member Portal account.
 
 Your One-Time Password (OTP) is: ${otpCode}
 
-This OTP is valid for 10 minutes. Do not share it with anyone.
+This OTP is valid for 5 minutes. Do not share it with anyone.
 
 If you did not request a password reset, please ignore this email.
 
@@ -136,7 +136,7 @@ Geophysical Society of Tulsa`,
     <div style="background:#1e293b;border:2px dashed #008080;border-radius:12px;text-align:center;padding:24px;margin:0 0 24px;">
       <span style="font-size:40px;font-weight:900;letter-spacing:12px;color:#00c0c0;font-family:monospace;">${otpCode}</span>
     </div>
-    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">⏱ This OTP expires in <strong style="color:#e2e8f0;">10 minutes</strong>.</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">⏱ This OTP expires in <strong style="color:#e2e8f0;">5 minutes</strong>.</p>
     <p style="margin:0 0 24px;font-size:13px;color:#94a3b8;">🔒 Do not share this code with anyone.</p>
     <p style="margin:0;font-size:12px;color:#64748b;">If you did not request a password reset, simply ignore this email — your account remains secure.</p>
   </div>

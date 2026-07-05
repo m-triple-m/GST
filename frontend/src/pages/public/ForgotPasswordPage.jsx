@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Globe, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle, ShieldCheck, KeyRound, RefreshCw } from 'lucide-react';
 import api from '../../api';
@@ -25,6 +25,19 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resending, setResending] = useState(false);
+  const [timer, setTimer] = useState(0);
+
+  useEffect(() => {
+    let interval = null;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   // ── Step 1: Request OTP ──────────────────────────────────
   const handleRequestOtp = async (e) => {
@@ -34,6 +47,7 @@ export default function ForgotPasswordPage() {
     try {
       await api.post('/auth/forgot-password', { email });
       setStep('otp');
+      setTimer(60);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
     } finally {
@@ -43,12 +57,14 @@ export default function ForgotPasswordPage() {
 
   // ── Resend OTP ───────────────────────────────────────────
   const handleResend = async () => {
+    if (timer > 0) return;
     setResending(true);
     setError('');
     try {
       await api.post('/auth/forgot-password', { email });
-    } catch {
-      setError('Failed to resend OTP.');
+      setTimer(60);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to resend OTP.');
     } finally {
       setResending(false);
     }
@@ -193,7 +209,7 @@ export default function ForgotPasswordPage() {
                 <p className="text-slate-300 text-sm">
                   We sent a 6-digit code to <span className="text-teal-400 font-semibold">{email}</span>. Enter it below.
                 </p>
-                <p className="text-slate-500 text-xs mt-1">Check your spam folder if you don't see it. Code expires in 10 min.</p>
+                <p className="text-slate-500 text-xs mt-1">Check your spam folder if you don't see it. Code expires in 5 min.</p>
               </div>
 
               <div>
@@ -228,11 +244,11 @@ export default function ForgotPasswordPage() {
                 <button
                   type="button"
                   onClick={handleResend}
-                  disabled={resending}
-                  className="text-xs text-slate-400 hover:text-teal-400 transition-colors flex items-center gap-1 mx-auto"
+                  disabled={resending || timer > 0}
+                  className="text-xs text-slate-400 hover:text-teal-400 transition-colors flex items-center gap-1 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <RefreshCw className={`w-3 h-3 ${resending ? 'animate-spin' : ''}`} />
-                  {resending ? 'Resending...' : 'Resend OTP'}
+                  {resending ? 'Resending...' : timer > 0 ? `Resend OTP in ${timer}s` : 'Resend OTP'}
                 </button>
               </div>
             </form>

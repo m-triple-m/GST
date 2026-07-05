@@ -3,7 +3,15 @@ const express    = require('express');
 const router     = express.Router();
 const controller = require('./auth.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
-const { registerValidation, loginValidation, refreshValidation, changePasswordValidation } = require('./auth.validation');
+const {
+  registerValidation,
+  loginValidation,
+  refreshValidation,
+  changePasswordValidation,
+  forgotPasswordValidation,
+  verifyOtpValidation,
+  resetPasswordValidation
+} = require('./auth.validation');
 
 // POST /api/auth/register
 router.post('/register', registerValidation, controller.register);
@@ -28,12 +36,12 @@ router.put('/change-password', verifyToken, changePasswordValidation, controller
 
 // ── OTP-based Password Reset (public) ─────────────────────
 // POST /api/auth/forgot-password
-router.post('/forgot-password', controller.forgotPassword);
+router.post('/forgot-password', forgotPasswordValidation, controller.forgotPassword);
 
 // POST /api/auth/verify-otp
-router.post('/verify-otp', controller.verifyOtp);
+router.post('/verify-otp', verifyOtpValidation, controller.verifyOtp);
 
 // POST /api/auth/reset-password
-router.post('/reset-password', controller.resetPassword);
+router.post('/reset-password', resetPasswordValidation, controller.resetPassword);
 
 module.exports = router;
