@@ -88,16 +88,24 @@ export default function ManageEventsPage() {
               </Link>
             </div>
           ) : (
-            events.map(event => (
-              <div key={event.id} className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col md:flex-row gap-6 items-center shadow-sm hover:shadow-md transition-shadow">
+            events.map(event => {
+              const isPastEvent = (event.status || '').toLowerCase() === 'past';
+              return (
+                <div key={event.id} className={`rounded-2xl border p-6 flex flex-col md:flex-row gap-6 items-center shadow-sm transition-all duration-200 ${
+                  isPastEvent
+                    ? 'bg-slate-50/70 border-slate-200/60 opacity-60'
+                    : 'bg-white border-slate-200 hover:shadow-md'
+                }`}>
 
-                {/* Date Square */}
-                <div className="w-24 h-24 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center shrink-0">
-                  {event.event_date ? (
-                    <>
-                      <span className="text-2xl font-black text-slate-900">{new Date(event.event_date).getDate()}</span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(event.event_date).toLocaleString('default', { month: 'short' })}</span>
-                    </>
+                  {/* Date Square */}
+                  <div className={`w-24 h-24 rounded-2xl border flex flex-col items-center justify-center shrink-0 ${
+                    isPastEvent ? 'bg-slate-100 border-slate-200/80' : 'bg-slate-50 border-slate-100'
+                  }`}>
+                    {event.event_date ? (
+                      <>
+                        <span className={`text-2xl font-black ${isPastEvent ? 'text-slate-400' : 'text-slate-900'}`}>{new Date(event.event_date).getDate()}</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(event.event_date).toLocaleString('default', { month: 'short' })}</span>
+                      </>
                   ) : (
                     <span className="text-xs font-bold text-slate-400">TBD</span>
                   )}
@@ -144,9 +152,9 @@ export default function ManageEventsPage() {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-
               </div>
-            ))
+            );
+          })
           )}
         </div>
       </main>

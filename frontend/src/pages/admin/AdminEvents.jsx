@@ -218,16 +218,30 @@ export default function AdminEvents() {
               const pct = event.capacity ? Math.min(100, Math.round((attendees / event.capacity) * 100)) : 0;
               const isConfirming = confirmId === event.id;
 
+              const isPastEvent = (event.status || '').toLowerCase() === 'past';
+
               return (
                 <div
                   key={event.id}
-                  className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden group hover:border-teal-400/40 transition-all duration-200"
+                  className={`rounded-[2rem] border shadow-sm overflow-hidden group transition-all duration-200 ${
+                    isPastEvent
+                      ? 'bg-slate-50/70 border-slate-200/60 opacity-60'
+                      : 'bg-white border-slate-200 hover:border-teal-400/40'
+                  }`}
                 >
                   <div className="flex flex-col md:flex-row">
 
                     {/* Date badge */}
-                    <div className="w-full md:w-36 bg-slate-50 flex flex-col items-center justify-center py-7 border-b md:border-b-0 md:border-r border-slate-100 group-hover:bg-teal-50 transition-colors flex-shrink-0">
-                      <span className="text-3xl font-black text-slate-900 group-hover:text-teal-600 transition-colors">{day}</span>
+                    <div className={`w-full md:w-36 flex flex-col items-center justify-center py-7 border-b md:border-b-0 md:border-r border-slate-100 transition-colors flex-shrink-0 ${
+                      isPastEvent
+                        ? 'bg-slate-100/60'
+                        : 'bg-slate-50 group-hover:bg-teal-50'
+                    }`}>
+                      <span className={`text-3xl font-black transition-colors ${
+                        isPastEvent
+                          ? 'text-slate-400'
+                          : 'text-slate-900 group-hover:text-teal-600'
+                      }`}>{day}</span>
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{month}</span>
                     </div>
 
