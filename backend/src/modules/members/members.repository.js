@@ -6,7 +6,9 @@ const db = require('../../config/db');
 const getExecutiveBoard = async () => {
   const [rows] = await db.execute(
     `SELECT m.id, m.first_name, m.last_name, m.exec_position,
-            m.exec_bio, m.exec_photo_url, m.company, m.job_title
+            m.exec_bio, m.exec_photo_url, m.avatar_url,
+            COALESCE(m.exec_photo_url, m.avatar_url) AS profile_image,
+            m.company, m.job_title, m.joined_at
      FROM members m
      WHERE m.is_executive = 1 AND m.status = 'active'
      ORDER BY m.exec_position`
@@ -17,8 +19,9 @@ const getExecutiveBoard = async () => {
 const getExecutiveById = async (id) => {
   const [rows] = await db.execute(
     `SELECT m.id, m.first_name, m.last_name, m.exec_position,
-            m.exec_bio, m.exec_photo_url, m.company, m.job_title,
-            m.email
+            m.exec_bio, m.exec_photo_url, m.avatar_url,
+            COALESCE(m.exec_photo_url, m.avatar_url) AS profile_image,
+            m.company, m.job_title, m.email, m.joined_at
      FROM members m
      WHERE m.id = ? AND m.is_executive = 1 AND m.status = 'active'`,
     [id]

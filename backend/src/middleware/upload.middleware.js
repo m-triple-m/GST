@@ -51,7 +51,7 @@ const resourceFilter = (req, file, cb) => {
 
 const uploadAvatar = multer({
   storage: createStorage(uploadDirAvatars, 'avatar'),
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: imageFilter
 });
 

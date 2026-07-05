@@ -20,7 +20,9 @@ const adminRoutes    = require('./modules/admin/admin.routes');
 const app = express();
 
 // ── Security headers (helmet) ────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
 
 // ── CORS ─────────────────────────────────────────────────
 app.use(cors({

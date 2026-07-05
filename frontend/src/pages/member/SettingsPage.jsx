@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { User, Mail, Phone, Link2, Briefcase, Building, Loader2, Save, CheckCircle, KeyRound, ShieldCheck, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import ImageCropModal from '../../components/ImageCropModal';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -33,6 +34,11 @@ export default function SettingsPage() {
     avatar_url: '',
     email: '', // read-only
   });
+
+  // ── Avatar crop states ────────────────────────────────
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState(null);
+  // ──────────────────────────────────────────────────────
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -66,12 +72,57 @@ export default function SettingsPage() {
     setSuccess('');
   };
 
-  const handleAvatarUpload = async (e) => {
+  const handleAvatarUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Validate format: JPG, JPEG, PNG, WEBP
+    const allowedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedFormats.includes(file.type)) {
+      setError('Unsupported file format. Please upload JPG, JPEG, PNG or WebP.');
+      setSuccess('');
+      return;
+    }
+
+    // Validate size: max 5MB
+    const maxSizeBytes = 5 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      setError('File size too large. Maximum size is 5MB.');
+      setSuccess('');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    // Open crop modal
+    const objectUrl = URL.createObjectURL(file);
+    setTempImageSrc(objectUrl);
+    setCropModalOpen(true);
+    
+    // Reset file input value so same image can be re-selected if needed
+    e.target.value = '';
+  };
+
+  const handleCancelCrop = () => {
+    setCropModalOpen(false);
+    if (tempImageSrc) {
+      URL.revokeObjectURL(tempImageSrc);
+      setTempImageSrc(null);
+    }
+  };
+
+  const handleSaveCrop = async (croppedBlob) => {
+    setCropModalOpen(false);
+    if (tempImageSrc) {
+      URL.revokeObjectURL(tempImageSrc);
+      setTempImageSrc(null);
+    }
+
     const fd = new FormData();
-    fd.append('avatar', file);
+    // Wrap the blob in a File object to give it a name and type
+    const croppedFile = new File([croppedBlob], 'avatar.jpg', { type: 'image/jpeg' });
+    fd.append('avatar', croppedFile);
 
     setSaving(true);
     setError('');
@@ -82,7 +133,7 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setFormData(prev => ({ ...prev, avatar_url: data.data?.avatar_url || prev.avatar_url }));
-      setSuccess('Avatar uploaded successfully.');
+      setSuccess('Avatar updated successfully.');
       window.dispatchEvent(new Event('profileUpdated'));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to upload avatar.');
@@ -154,7 +205,7 @@ export default function SettingsPage() {
                 Upload New Image
                 <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={saving} />
               </label>
-              <p className="text-xs text-slate-500 mt-2">JPG, PNG or WebP. Max 2MB.</p>
+              <p className="text-xs text-slate-500 mt-2">JPG, PNG or WebP. Max 5MB.</p>
             </div>
           </div>
 
@@ -446,6 +497,12 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        imageSrc={tempImageSrc}
+        onCancel={handleCancelCrop}
+        onSave={handleSaveCrop}
+      />
     </div>
   );
 }

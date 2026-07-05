@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Calendar, Settings,
@@ -22,6 +22,27 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    const fetchProfile = () => {
+      import('../api').then(({ default: api }) => {
+        api.get('/members/me')
+          .then(res => setProfile(res.data.data))
+          .catch(err => console.error('Failed to load profile for admin sidebar', err));
+      });
+    };
+    fetchProfile();
+    window.addEventListener('profileUpdated', fetchProfile);
+    return () => window.removeEventListener('profileUpdated', fetchProfile);
+  }, []);
+
+  const displayName = profile?.first_name 
+    ? `${profile.first_name} ${profile.last_name || ''}`.trim() 
+    : (user?.name || 'Admin');
+  const displayInitial = displayName[0]?.toUpperCase() || 'A';
+  const defaultAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=14b8a6`;
 
   const handleLogout = () => {
     logout();
@@ -51,14 +72,27 @@ export default function AdminLayout() {
           </button>
         </div>
 
-        {/* Role badge */}
-        {sidebarOpen && (
-          <div className="mx-4 mt-4 flex items-center gap-2 bg-teal-500/10 border border-teal-500/20 rounded-xl px-3 py-2">
-            <ShieldAlert className="w-3.5 h-3.5 text-teal-400" />
-            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-widest">
-              {user?.name || 'Admin'}
-            </span>
-          </div>
+        {/* User profile card */}
+        {sidebarOpen ? (
+          <Link to="/admin/profile" className="mx-4 mt-4 flex items-center gap-3 bg-white/5 border border-white/10 hover:border-teal-500/40 hover:bg-white/10 rounded-2xl p-3 transition-all group">
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Avatar" className="w-9 h-9 rounded-xl object-cover animate-fade-in" />
+            ) : (
+              <img src={defaultAvatar} alt="Default Avatar" className="w-9 h-9 rounded-xl object-cover" />
+            )}
+            <div className="truncate">
+              <div className="text-white font-bold text-xs capitalize truncate w-32 group-hover:text-teal-400 transition-colors" title={displayName}>{displayName}</div>
+              <div className="text-[9px] font-bold text-teal-400 uppercase tracking-widest mt-0.5">Admin Role</div>
+            </div>
+          </Link>
+        ) : (
+          <Link to="/admin/profile" className="mx-auto mt-4 flex items-center justify-center w-10 h-10 bg-white/5 border border-white/10 hover:border-teal-500/40 hover:bg-white/10 rounded-xl transition-all" title={displayName}>
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Avatar" className="w-7 h-7 rounded-lg object-cover animate-fade-in" />
+            ) : (
+              <span className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center text-[10px] font-black text-white">{displayInitial}</span>
+            )}
+          </Link>
         )}
 
         <nav className="flex-1 p-4 space-y-1">

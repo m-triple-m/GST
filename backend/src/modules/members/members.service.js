@@ -15,7 +15,31 @@ const getExecutiveById = async (id) => {
 };
 
 const getMyProfile = async (userId) => {
-  const member = await repo.getMemberByUserId(userId);
+  let member = await repo.getMemberByUserId(userId);
+  if (!member) {
+    const user = await authRepo.findUserById(userId);
+    if (user && user.role === 'admin') {
+      const emailName = user.email.split('@')[0];
+      const nameParts = emailName.split(/[._-]/);
+      const firstName = nameParts[0] ? (nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1)) : 'Admin';
+      const lastName = nameParts[1] ? (nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1)) : 'User';
+
+      await repo.createMemberApplication({
+        userId,
+        email: user.email,
+        firstName,
+        lastName,
+        tier: 'professional',
+        referred: false,
+      });
+
+      const newMember = await repo.getMemberByUserId(userId);
+      if (newMember) {
+        await repo.updateMemberStatus(newMember.id, 'active');
+      }
+      member = await repo.getMemberByUserId(userId);
+    }
+  }
   if (!member) throw ApiError.notFound('Member profile not found');
   return member;
 };

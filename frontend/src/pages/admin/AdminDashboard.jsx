@@ -6,12 +6,34 @@ import {
   CheckCircle2, XCircle, Activity
 } from 'lucide-react';
 import api from '../../api';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AdminDashboard() {
+  const { user } = useAuth();
   const [statsData, setStatsData] = useState(null);
   const [pendingApps, setPendingApps] = useState([]);
   const [recentLog, setRecentLog] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const { data } = await api.get('/members/me');
+        setProfile(data.data);
+      } catch (err) {
+        console.error('Error fetching admin profile:', err);
+      }
+    };
+    fetchProfile();
+    window.addEventListener('profileUpdated', fetchProfile);
+    return () => window.removeEventListener('profileUpdated', fetchProfile);
+  }, []);
+
+  const displayName = profile?.first_name 
+    ? `${profile.first_name} ${profile.last_name || ''}`.trim() 
+    : (user?.name || 'Admin');
+  const defaultAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=14b8a6`;
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -61,15 +83,19 @@ export default function AdminDashboard() {
               <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white" />
             </button>
             <div className="h-8 w-px bg-slate-200" />
-            <div className="flex items-center gap-3">
+            <Link to="/admin/profile" className="flex items-center gap-3 group hover:opacity-85 transition-opacity">
               <div className="text-right hidden sm:block">
-                <div className="text-xs font-black text-slate-900">Admin_User</div>
+                <div className="text-xs font-black text-slate-900 group-hover:text-teal-600 transition-colors">{displayName}</div>
                 <div className="text-[10px] font-bold text-teal-600 uppercase tracking-widest">Super Admin</div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-200 border border-slate-300 overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80" alt="avatar" />
+              <div className="w-10 h-10 rounded-xl bg-slate-200 border border-slate-300 overflow-hidden relative">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <img src={defaultAvatar} alt="avatar" className="w-full h-full object-cover" />
+                )}
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 

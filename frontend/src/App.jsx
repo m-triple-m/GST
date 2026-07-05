@@ -105,6 +105,7 @@ export default function App() {
                 <Route path="/admin/members" element={<AdminMembers />} />
                 <Route path="/admin/events" element={<AdminEvents />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
+                <Route path="/admin/profile" element={<SettingsPage />} />
               </Route>
             </Route>
 

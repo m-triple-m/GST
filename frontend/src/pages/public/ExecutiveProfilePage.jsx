@@ -52,8 +52,8 @@ export default function ExecutiveProfilePage() {
 
   const fullName = `${exec.first_name} ${exec.last_name}`;
   const role = exec.job_title || 'EXECUTIVE MEMBER';
-  const joinedDate = exec.created_at ? new Date(exec.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'Unknown';
-  const image = exec.profile_image || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80';
+  const joinedDate = (exec.joined_at || exec.created_at) ? new Date(exec.joined_at || exec.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'Unknown';
+  const image = exec.profile_image || exec.avatar_url || exec.exec_photo_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80';
   const bio = exec.bio || `${fullName} is an active member of the Executive Board of the Geophysical Society of Tulsa.`;
 
   // Provide some default dummy achievements & links for the UI since they aren't in DB yet
