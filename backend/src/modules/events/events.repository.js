@@ -30,10 +30,10 @@ const listEvents = async ({ search, status, category, type, sort, order, limit, 
   const sortCol = allowedSort.includes(sort) ? sort : 'event_date';
   const sortDir = order?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
-  let sql = `SELECT id, title, event_type, category, description, speaker_name, speaker_org,
+  let sql = `SELECT id, title, event_type, category, description, speaker_name, speaker_org, speaker_image_url, speaker_bio,
                     event_date, start_time, end_time, duration_minutes, rsvp_deadline,
                     location_name, location_address,
-                    location_type, capacity, 
+                    location_type, capacity, ticket_cost,
                     CASE
                       WHEN status = 'upcoming' AND event_date < CURRENT_DATE() THEN 'past'
                       ELSE status
@@ -97,10 +97,10 @@ const getEventById = async (id) => {
 const createEvent = async (data, userId) => {
   const {
     title, event_type, category, description, detailed_summary,
-    speaker_name, speaker_org, event_date, start_time, end_time,
+    speaker_name, speaker_org, speaker_image_url, speaker_bio, event_date, start_time, end_time,
     duration_minutes,
     rsvp_deadline, location_name, location_address, location_type,
-    location_url, capacity, register_url, status, featured, color,
+    location_url, capacity, ticket_cost, member_ticket_cost, non_member_ticket_cost, register_url, status, featured, color,
     banner_url, video_url, gallery = [], keynotes = [],
   } = data;
 
@@ -115,15 +115,16 @@ const createEvent = async (data, userId) => {
   const [result] = await db.execute(
     `INSERT INTO events
      (title, event_type, category, description, detailed_summary,
-      speaker_name, speaker_org, event_date, start_time, end_time, duration_minutes,
+      speaker_name, speaker_org, speaker_image_url, speaker_bio, event_date, start_time, end_time, duration_minutes,
       rsvp_deadline, location_name, location_address, location_type, location_url,
-      capacity, register_url, status, featured, color, banner_url, video_url, created_by)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      capacity, ticket_cost, member_ticket_cost, non_member_ticket_cost, register_url, status, featured, color, banner_url, video_url, created_by)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [title, event_type, category||null, description||null, detailed_summary||null,
-     speaker_name||null, speaker_org||null, event_date, start_time||null, resolvedEndTime,
+     speaker_name||null, speaker_org||null, speaker_image_url||null, speaker_bio||null, event_date, start_time||null, resolvedEndTime,
      duration_minutes ? Number(duration_minutes) : null,
      rsvp_deadline||null, location_name||null, location_address||null,
-     location_type||'physical', location_url||null, capacity||0,
+     location_type||'physical', location_url||null, capacity||0, ticket_cost||0.00,
+     member_ticket_cost||0.00, non_member_ticket_cost||0.00,
      register_url||null, status||'upcoming', featured?1:0, color||'teal',
      banner_url||null, video_url||null, userId]
   );
@@ -150,9 +151,9 @@ const updateEvent = async (id, data) => {
   const values = [];
   const allowed = [
     'title','event_type','category','description','detailed_summary',
-    'speaker_name','speaker_org','event_date','start_time','end_time','duration_minutes',
+    'speaker_name','speaker_org','speaker_image_url','speaker_bio','event_date','start_time','end_time','duration_minutes',
     'rsvp_deadline','location_name','location_address','location_type','location_url',
-    'capacity','register_url','status','featured','color','banner_url','video_url',
+    'capacity','ticket_cost','member_ticket_cost','non_member_ticket_cost','register_url','status','featured','color','banner_url','video_url',
   ];
   allowed.forEach((f) => {
     if (data[f] !== undefined) { fields.push(`${f} = ?`); values.push(data[f]); }
@@ -207,16 +208,20 @@ const deleteEvent = async (id) => {
 // ── Registrations ─────────────────────────────────────────
 
 const registerForEvent = async (eventId, data, userId) => {
-  const { attendee_name, attendee_email, company, dietary_notes, attendee_type, payment_method } = data;
-  const amount = attendee_type === 'guest' ? 35.00 : 25.00;
+  const { attendee_name, attendee_email, company, dietary_notes, attendee_type, payment_method, guests = [] } = data;
+  
+  const [eventRows] = await db.execute('SELECT ticket_cost FROM events WHERE id = ?', [eventId]);
+  const ticketCost = eventRows.length ? Number(eventRows[0].ticket_cost) : 0;
+  
+  const amount = ticketCost * (1 + guests.length);
 
   const [result] = await db.execute(
     `INSERT INTO event_registrations
      (event_id, user_id, attendee_name, attendee_email, company, dietary_notes,
-      attendee_type, payment_method, payment_status, amount_paid)
-     VALUES (?,?,?,?,?,?,?,?,'pending',?)`,
+      attendee_type, guests, payment_method, payment_status, amount_paid)
+     VALUES (?,?,?,?,?,?,?,?,?, 'pending',?)`,
     [eventId, userId||null, attendee_name, attendee_email, company||null,
-     dietary_notes||null, attendee_type||'member', payment_method||'card', amount]
+     dietary_notes||null, attendee_type||'member', JSON.stringify(guests), payment_method||'card', amount]
   );
   return result.insertId;
 };

@@ -64,15 +64,20 @@ CREATE TABLE IF NOT EXISTS events (
   detailed_summary TEXT,
   speaker_name     VARCHAR(255),
   speaker_org      VARCHAR(255),
+  speaker_image_url VARCHAR(500),
+  speaker_bio      TEXT,
   event_date       DATE NOT NULL,
   start_time       TIME,
   end_time         TIME,
   rsvp_deadline    DATE,
   location_name    VARCHAR(255),
   location_address VARCHAR(500),
-  location_type    ENUM('online','physical') DEFAULT 'physical',
+  location_type    ENUM('online','physical','hybrid') DEFAULT 'physical',
   location_url     VARCHAR(500),
   capacity         INT DEFAULT 0 COMMENT '0 = unlimited',
+  ticket_cost          DECIMAL(10,2) DEFAULT 0.00,
+  member_ticket_cost   DECIMAL(10,2) DEFAULT 0.00,
+  non_member_ticket_cost DECIMAL(10,2) DEFAULT 0.00,
   register_url     VARCHAR(500),
   status           ENUM('upcoming','past','draft','cancelled') DEFAULT 'upcoming',
   featured         TINYINT(1) DEFAULT 0,
@@ -120,6 +125,7 @@ CREATE TABLE IF NOT EXISTS event_registrations (
   company         VARCHAR(255),
   dietary_notes   VARCHAR(255),
   attendee_type   ENUM('member','guest') DEFAULT 'member',
+  guests          JSON,
   payment_method  ENUM('card','at_door','waived') DEFAULT 'card',
   payment_status  ENUM('pending','paid','failed','refunded') DEFAULT 'pending',
   amount_paid     DECIMAL(10,2) DEFAULT 0.00,
@@ -254,4 +260,14 @@ VALUES (
   '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/lewdP9kMzHTnRxTk6',
   'admin',
   1
+);
+
+-- ─────────────────────────────────────────
+--  SYSTEM SETTINGS
+-- ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS system_settings (
+  id            INT PRIMARY KEY AUTO_INCREMENT,
+  setting_key   VARCHAR(50) UNIQUE NOT NULL,
+  setting_value TEXT,
+  updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

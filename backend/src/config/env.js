@@ -40,6 +40,6 @@ module.exports = {
   
   emailFrom: process.env.EMAIL_FROM || '"GST Events" <noreply@gst.org>',
 
-  frontendUrl:     process.env.FRONTEND_URL || 'http://localhost:5173',
+  frontendUrl:      process.env.FRONTEND_URL || 'http://localhost:5173',
   bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12,
 };

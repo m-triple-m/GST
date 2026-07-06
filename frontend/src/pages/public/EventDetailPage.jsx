@@ -23,6 +23,7 @@ export default function EventDetailPage() {
   const [isRegistered, setIsRegistered] = useState(false);
   const { addToCart, items } = useCart();
   const { isAuthenticated } = useAuth();
+  const [globalSettings, setGlobalSettings] = useState({});
 
   // Check if this event is already in the cart
   const inCart = items.some(i => i.eventId === Number(id));
@@ -46,10 +47,15 @@ export default function EventDetailPage() {
     const fetchEvent = async () => {
       try {
         setLoading(true);
-        const { data } = await api.get(`/events/${id}`);
-        setEvent(data.data);
-        
-        // Fetch a couple related events (same category or type, just getting a few for now)
+        // Fetch event and global settings in parallel
+        const [eventRes, settingsRes] = await Promise.all([
+          api.get(`/events/${id}`),
+          api.get('/settings').catch(() => ({ data: { data: {} } })),
+        ]);
+        setEvent(eventRes.data.data);
+        setGlobalSettings(settingsRes.data.data || {});
+
+        // Fetch related events
         try {
           const relatedData = await api.get(`/events?limit=4`);
           setRelated((relatedData.data.data || []).filter(e => e.id !== Number(id) && e.status !== 'draft').slice(0, 2));
@@ -133,7 +139,7 @@ export default function EventDetailPage() {
 
   const formattedDate = event.event_date ? new Date(event.event_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'TBD';
   const formattedTime = event.start_time ? `${event.start_time} ${event.end_time ? `– ${event.end_time}` : ''}` : 'TBD';
-  const locName = event.location_name || (event.location_type === 'online' ? 'Online' : 'TBD');
+  const locName = event.location_name || (event.location_type === 'online' ? 'Online' : event.location_type === 'hybrid' ? 'Hybrid (In Person & Online)' : 'In Person');
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20">
@@ -284,7 +290,7 @@ export default function EventDetailPage() {
             <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
               <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                 <Info className="w-5 h-5 text-teal-500" />
-                {event.status === 'past' ? 'Technical Summary' : 'Event Overview'}
+                {event.status === 'past' ? 'Technical Summary' : 'Abstract'}
               </h2>
               <p className="text-slate-600 leading-relaxed text-base">
                 {event.status === 'past' && event.detailed_summary ? event.detailed_summary : event.description}
@@ -324,16 +330,28 @@ export default function EventDetailPage() {
               <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
                 <h2 className="text-xl font-bold text-slate-800 mb-6">Featured Speaker</h2>
                 <div className="flex items-start gap-5">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shrink-0 shadow-lg">
-                    <Users className="w-8 h-8 text-white" />
-                  </div>
+                  {event.speaker_image_url ? (
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 shadow-lg border border-slate-100">
+                      <img src={event.speaker_image_url} alt={event.speaker_name} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shrink-0 shadow-lg">
+                      <Users className="w-8 h-8 text-white" />
+                    </div>
+                  )}
                   <div>
                     <h3 className="text-xl font-bold text-slate-800">{event.speaker_name}</h3>
                     <p className="text-teal-600 font-medium text-sm mb-3">{event.speaker_org}</p>
-                    <p className="text-slate-500 text-sm leading-relaxed">
-                      Speaker biography and professional background will be provided closer to the event date.
-                      Please check back or subscribe to our newsletter for updates.
-                    </p>
+                    {event.speaker_bio ? (
+                      <p className="text-slate-500 text-sm leading-relaxed whitespace-pre-wrap">
+                        {event.speaker_bio}
+                      </p>
+                    ) : (
+                      <p className="text-slate-500 text-sm leading-relaxed">
+                        Speaker biography and professional background will be provided closer to the event date.
+                        Please check back or subscribe to our newsletter for updates.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -439,7 +457,9 @@ export default function EventDetailPage() {
                                 : 'border-slate-100 text-slate-400 hover:border-slate-200'
                             }`}
                           >
-                            {type === 'member' ? `Member · $25` : `Guest · $35`}
+                          {type === 'member'
+                              ? `Member · $${(Number(event.member_ticket_cost) || Number(globalSettings.member_ticket_cost) || Number(event.ticket_cost) || 0).toFixed(2)}`
+                              : `Guest · $${(Number(event.non_member_ticket_cost) || Number(globalSettings.non_member_ticket_cost) || Number(event.ticket_cost) || 0).toFixed(2)}`}
                           </button>
                         ))}
                       </div>

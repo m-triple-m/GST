@@ -24,13 +24,18 @@ const INITIAL = {
   description:      '',
   speaker_name:     '',
   speaker_org:      '',
+  speaker_image_url:'',
+  speaker_bio:      '',
   event_date:       '',
   start_time:       '',
   duration_minutes: '',
   rsvp_deadline:    '',
   location_type:    'online',
-  location:         '',
+  location_url:     '',
+  location_address: '',
   capacity:         '',
+  member_ticket_cost:     '',
+  non_member_ticket_cost: '',
   status:           'upcoming',
   video_url:        '',
   gallery:          [],
@@ -44,13 +49,18 @@ const DUMMY_DATA = {
   description:      'Join us for an in-depth discussion on the latest developments in Tulsa Basin exploration. Our keynote speaker will walk through seismic interpretation techniques and basin modelling workflows used in current production projects.',
   speaker_name:     'Dr. Sarah Mitchell',
   speaker_org:      'University of Tulsa – Geosciences Dept.',
+  speaker_image_url:'',
+  speaker_bio:      'Dr. Mitchell is an award-winning geoscientist specializing in structural geology and basin modeling.',
   event_date:       (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]; })(),
   start_time:       '11:30',
   duration_minutes: '90',
   rsvp_deadline:    (() => { const d = new Date(); d.setDate(d.getDate() + 25); return d.toISOString().split('T')[0]; })(),
   location_type:    'physical',
-  location:         'Tulsa Country Club, 701 N Union Ave, Tulsa, OK 74127',
+  location_url:     '',
+  location_address: 'Tulsa Country Club, 701 N Union Ave, Tulsa, OK 74127',
   capacity:         '150',
+  member_ticket_cost:     '25.00',
+  non_member_ticket_cost: '35.00',
   status:           'upcoming',
   video_url:        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
   gallery:          [],
@@ -65,7 +75,7 @@ export default function ScheduleEventPage() {
 
   const [form, setForm]       = useState(INITIAL);
   const [loading, setLoading] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(!!id);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [errors, setErrors]   = useState({});
   const [success, setSuccess] = useState(false);
   const [apiError, setApiError] = useState('');
@@ -88,13 +98,18 @@ export default function ScheduleEventPage() {
           description:      event.description || '',
           speaker_name:     event.speaker_name || '',
           speaker_org:      event.speaker_org || '',
+          speaker_image_url:event.speaker_image_url || '',
+          speaker_bio:      event.speaker_bio || '',
           event_date:       event.event_date ? new Date(event.event_date).toISOString().split('T')[0] : '',
           start_time:       event.start_time || '',
           duration_minutes: event.duration_minutes != null ? String(event.duration_minutes) : '',
           rsvp_deadline:    event.rsvp_deadline ? new Date(event.rsvp_deadline).toISOString().split('T')[0] : '',
           location_type:    event.location_type || 'online',
-          location:         (event.location_type === 'online' ? event.location_url : event.location_address) || '',
+          location_url:     event.location_url || '',
+          location_address: event.location_address || '',
           capacity:         event.capacity || '',
+          member_ticket_cost:     event.member_ticket_cost != null ? String(event.member_ticket_cost) : '',
+          non_member_ticket_cost: event.non_member_ticket_cost != null ? String(event.non_member_ticket_cost) : '',
           status:           event.status || 'upcoming',
           video_url:        event.video_url || '',
           gallery:          event.gallery?.length ? event.gallery : [],
@@ -106,7 +121,29 @@ export default function ScheduleEventPage() {
         setInitialLoad(false);
       }
     };
-    loadEvent();
+
+    const loadGlobalFee = async () => {
+      try {
+        const { data } = await api.get('/settings');
+        if (data.data) {
+          setForm(prev => ({
+            ...prev,
+            member_ticket_cost:     data.data.member_ticket_cost     || '0.00',
+            non_member_ticket_cost: data.data.non_member_ticket_cost || '0.00',
+          }));
+        }
+      } catch (err) {
+        console.error('Could not fetch global fee', err);
+      } finally {
+        setInitialLoad(false);
+      }
+    };
+
+    if (id) {
+      loadEvent();
+    } else {
+      loadGlobalFee();
+    }
   }, [id]);
 
   const set = (field, val) => {
@@ -118,7 +155,7 @@ export default function ScheduleEventPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const endpoint = type === 'gallery' ? '/events/upload/image' : '/events/upload/resource';
+    const endpoint = type === 'resource' ? '/events/upload/resource' : '/events/upload/image';
     const formData = new FormData();
     formData.append('file', file);
 
@@ -129,7 +166,11 @@ export default function ScheduleEventPage() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const newUrl = data.data.url;
-      set(type, [...form[type], newUrl]);
+      if (type === 'speaker_image_url') {
+        set('speaker_image_url', newUrl);
+      } else {
+        set(type, [...form[type], newUrl]);
+      }
     } catch (err) {
       setApiError(err.response?.data?.message || 'Failed to upload file.');
     } finally {
@@ -162,11 +203,15 @@ export default function ScheduleEventPage() {
         description:      form.description.trim() || undefined,
         speaker_name:     form.speaker_name.trim() || undefined,
         speaker_org:      form.speaker_org.trim() || undefined,
+        speaker_image_url:form.speaker_image_url.trim() || undefined,
+        speaker_bio:      form.speaker_bio.trim() || undefined,
         event_date:       form.event_date || undefined,
         location_type:    form.location_type,
-        location_url:     form.location_type === 'online' ? form.location.trim() : undefined,
-        location_address: form.location_type === 'physical' ? form.location.trim() : undefined,
+        location_url:     ['online', 'hybrid'].includes(form.location_type) ? form.location_url.trim() : undefined,
+        location_address: ['physical', 'hybrid'].includes(form.location_type) ? form.location_address.trim() : undefined,
         capacity:         form.capacity ? parseInt(form.capacity, 10) : 0,
+        member_ticket_cost:     form.member_ticket_cost ? parseFloat(form.member_ticket_cost) : 0.00,
+        non_member_ticket_cost: form.non_member_ticket_cost ? parseFloat(form.non_member_ticket_cost) : 0.00,
         status:           asDraft ? 'draft' : (form.status === 'draft' ? 'upcoming' : form.status),
         rsvp_deadline:    form.rsvp_deadline || undefined,
         duration_minutes: form.duration_minutes ? parseInt(form.duration_minutes, 10) : undefined,
@@ -288,8 +333,8 @@ export default function ScheduleEventPage() {
                   {errors.title && <p className="mt-1.5 text-xs text-rose-600 font-medium">{errors.title}</p>}
                 </div>
 
-                {/* Category + Capacity */}
-                <div className="grid grid-cols-2 gap-5">
+                {/* Category + Capacity + Ticket Cost */}
+                <div className="grid grid-cols-3 gap-5">
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
                       Category *
@@ -318,18 +363,46 @@ export default function ScheduleEventPage() {
                       className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
                     />
                   </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                      Member Ticket Cost ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={form.member_ticket_cost}
+                      onChange={(e) => set('member_ticket_cost', e.target.value)}
+                      placeholder="0.00 = Free"
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                      Non-Member Ticket Cost ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={form.non_member_ticket_cost}
+                      onChange={(e) => set('non_member_ticket_cost', e.target.value)}
+                      placeholder="0.00 = Free"
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                    />
+                  </div>
                 </div>
 
-                {/* Description */}
+                {/* Abstract */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
-                    Description
+                    Abstract
                   </label>
                   <textarea
                     rows={5}
                     value={form.description}
                     onChange={(e) => set('description', e.target.value)}
-                    placeholder="Provide a detailed agenda or description..."
+                    placeholder="Provide a detailed agenda or abstract..."
                     className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all placeholder:text-slate-300 resize-none"
                   />
                 </div>
@@ -359,6 +432,49 @@ export default function ScheduleEventPage() {
                     />
                   </div>
                 </div>
+
+                <div className="pt-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                    Speaker Profile Image
+                  </label>
+                  <div className="flex gap-4 items-center">
+                    {form.speaker_image_url && (
+                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0">
+                        <img src={form.speaker_image_url} alt="Speaker" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <input
+                      value={form.speaker_image_url}
+                      onChange={(e) => set('speaker_image_url', e.target.value)}
+                      placeholder="Image URL or upload..."
+                      className="flex-1 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all placeholder:text-slate-300"
+                    />
+                    <label className="flex-shrink-0 btn-outline-teal px-4 py-3.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest cursor-pointer flex items-center gap-2">
+                      <UploadCloud className="w-4 h-4" />
+                      Upload
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleFileUpload(e, 'speaker_image_url')} 
+                        className="hidden" 
+                        disabled={uploadingMedia}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 mt-5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                    Speaker Bio / Description
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={form.speaker_bio}
+                    onChange={(e) => set('speaker_bio', e.target.value)}
+                    placeholder="Provide a brief background or bio for the speaker..."
+                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all placeholder:text-slate-300 resize-none"
+                  />
+                </div>
               </div>
             </section>
 
@@ -371,32 +487,54 @@ export default function ScheduleEventPage() {
               <div className="space-y-5">
                 {/* Toggle */}
                 <div className="flex p-1.5 bg-slate-100 rounded-2xl w-fit">
-                  {(['online', 'physical']).map((t) => (
+                  {(['online', 'physical', 'hybrid']).map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => set('location_type', t)}
                       className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${form.location_type === t ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
                     >
-                      {t === 'online' ? <Monitor className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
-                      {t === 'online' ? 'Online' : 'Physical'}
+                      {t === 'online' && <Monitor className="w-3.5 h-3.5" />}
+                      {t === 'physical' && <MapPin className="w-3.5 h-3.5" />}
+                      {t === 'hybrid' && <div className="flex -space-x-1"><Monitor className="w-3.5 h-3.5 z-10 bg-slate-900 rounded-full" /><MapPin className="w-3.5 h-3.5" /></div>}
+                      {t === 'online' ? 'Online' : t === 'physical' ? 'In Person' : 'Hybrid'}
                     </button>
                   ))}
                 </div>
-                {/* Location input */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
-                    {form.location_type === 'online' ? 'Meeting URL' : 'Venue Address'}
-                  </label>
-                  <div className="relative">
-                    <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      value={form.location}
-                      onChange={(e) => set('location', e.target.value)}
-                      placeholder={form.location_type === 'online' ? 'https://zoom.us/j/...' : 'Enter physical address'}
-                      className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300"
-                    />
-                  </div>
+                <div className="space-y-4">
+                  {['online', 'hybrid'].includes(form.location_type) && (
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                        Meeting URL
+                      </label>
+                      <div className="relative">
+                        <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          value={form.location_url}
+                          onChange={(e) => set('location_url', e.target.value)}
+                          placeholder="https://zoom.us/j/..."
+                          className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {['physical', 'hybrid'].includes(form.location_type) && (
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                        Venue Address
+                      </label>
+                      <div className="relative">
+                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          value={form.location_address}
+                          onChange={(e) => set('location_address', e.target.value)}
+                          placeholder="Enter in-person address"
+                          className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </section>

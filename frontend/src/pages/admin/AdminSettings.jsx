@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Settings, Globe, Mail, Bell, Shield, Trash2, Key,
-  Save, AlertTriangle, ToggleLeft, ToggleRight, ChevronRight,
-  Users, CreditCard, Lock, RefreshCw, Database, Sliders
+  Settings, Globe, Mail, Bell, Shield, Trash2, Key, Database,
+  Save, AlertTriangle, ToggleLeft, ToggleRight, ChevronRight, Loader2, Sliders, Users, CreditCard, Lock, RefreshCw
 } from 'lucide-react';
+import api from '../../api';
 
 /* ── Reusable field components ── */
 function FieldGroup({ label, hint, children }) {
@@ -18,7 +18,7 @@ function FieldGroup({ label, hint, children }) {
   );
 }
 
-function Input({ label, id, type = 'text', defaultValue, placeholder }) {
+function Input({ label, id, type = 'text', defaultValue, value, onChange, placeholder }) {
   return (
     <div>
       {label && <label htmlFor={id} className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>}
@@ -26,6 +26,8 @@ function Input({ label, id, type = 'text', defaultValue, placeholder }) {
         id={id}
         type={type}
         defaultValue={defaultValue}
+        value={value}
+        onChange={onChange}
         placeholder={placeholder}
         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
       />
@@ -66,19 +68,77 @@ function SectionCard({ icon: Icon, title, children }) {
   );
 }
 
-const membershipTiers = [
-  { name: 'Student',      price: '$25 / yr',  members: 142, color: 'bg-blue-50 text-blue-600' },
-  { name: 'Professional', price: '$75 / yr',  members: 289, color: 'bg-teal-50 text-teal-600' },
-  { name: 'Corporate',    price: '$250 / yr', members: 111, color: 'bg-amber-50 text-amber-600' },
-];
 
 export default function AdminSettings() {
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [memberFee, setMemberFee] = useState('');
+  const [nonMemberFee, setNonMemberFee] = useState('');
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  // Membership tier editing
+  const [tiers, setTiers] = useState([
+    { name: 'Student',      price: '', color: 'bg-blue-50 text-blue-600' },
+    { name: 'Professional', price: '', color: 'bg-teal-50 text-teal-600' },
+    { name: 'Corporate',    price: '', color: 'bg-amber-50 text-amber-600' },
+  ]);
+  const [editingTier, setEditingTier] = useState(null);
+  const [tierDraft, setTierDraft] = useState({ name: '', price: '' });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const { data } = await api.get('/settings');
+        if (data.data) {
+          setMemberFee(data.data.member_ticket_cost || '0.00');
+          setNonMemberFee(data.data.non_member_ticket_cost || '0.00');
+          // Load tier prices from settings if available
+          setTiers(prev => prev.map(t => ({
+            ...t,
+            price: data.data[`tier_${t.name.toLowerCase()}_price`] || t.price || '',
+          })));
+        }
+      } catch (err) {
+        console.error('Failed to load settings', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      const tierSettings = {};
+      tiers.forEach(t => { tierSettings[`tier_${t.name.toLowerCase()}_price`] = t.price; });
+      await api.put('/settings', {
+        member_ticket_cost:     memberFee,
+        non_member_ticket_cost: nonMemberFee,
+        ...tierSettings,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      console.error('Failed to save settings', err);
+    }
   };
+
+  const openEditTier = (tier) => {
+    setEditingTier(tier.name);
+    setTierDraft({ name: tier.name, price: tier.price });
+  };
+
+  const saveTierEdit = () => {
+    setTiers(prev => prev.map(t => t.name === editingTier ? { ...t, ...tierDraft } : t));
+    setEditingTier(null);
+  };
+
+  if (loading) {
+    return (
+      <main className="flex-1 flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 text-teal-500 animate-spin" />
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1 min-w-0 flex flex-col">
@@ -137,33 +197,83 @@ export default function AdminSettings() {
         {/* Membership Tiers */}
         <SectionCard icon={CreditCard} title="Membership Tiers">
           <div className="py-4 space-y-3">
-            {membershipTiers.map((tier) => (
+            {tiers.map((tier) => (
               <div
                 key={tier.name}
-                className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl hover:border-teal-200 transition-all group"
+                className="border border-slate-200 rounded-2xl overflow-hidden hover:border-teal-200 transition-all"
               >
-                <div className="flex items-center gap-4">
-                  <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg ${tier.color}`}>
-                    {tier.name}
-                  </span>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{tier.price}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{tier.members} members</p>
+                {editingTier === tier.name ? (
+                  <div className="p-4 space-y-3 bg-teal-50">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tier Name</label>
+                        <input
+                          value={tierDraft.name}
+                          onChange={(e) => setTierDraft(d => ({ ...d, name: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Annual Price ($)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          value={tierDraft.price}
+                          onChange={(e) => setTierDraft(d => ({ ...d, price: e.target.value }))}
+                          placeholder="0.00"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={saveTierEdit} className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-xs font-black rounded-xl hover:bg-teal-500 transition-all">
+                        <Save className="w-3.5 h-3.5" /> Save
+                      </button>
+                      <button onClick={() => setEditingTier(null)} className="px-4 py-2 border border-slate-200 text-slate-500 text-xs font-bold rounded-xl hover:bg-slate-50 transition-all">
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <button className="flex items-center gap-1.5 text-xs font-bold text-slate-400 group-hover:text-teal-600 transition-colors">
-                  Edit <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+                ) : (
+                  <div className="flex items-center justify-between p-4 bg-slate-50 group">
+                    <div className="flex items-center gap-4">
+                      <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg ${tier.color}`}>
+                        {tier.name}
+                      </span>
+                      <p className="text-sm font-bold text-slate-800">
+                        {tier.price ? `$${parseFloat(tier.price).toFixed(2)} / yr` : <span className="text-slate-400 font-medium italic">Not set</span>}
+                      </p>
+                    </div>
+                    <button onClick={() => openEditTier(tier)} className="flex items-center gap-1.5 text-xs font-bold text-slate-400 group-hover:text-teal-600 transition-colors">
+                      Edit <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
-            <button className="w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-xs font-bold text-slate-400 hover:border-teal-400 hover:text-teal-600 transition-all flex items-center justify-center gap-2">
-              <Users className="w-4 h-4" /> Add New Tier
-            </button>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pt-1">Click "Save Changes" above after editing tiers to persist.</p>
           </div>
         </SectionCard>
 
         {/* Event Defaults */}
-        <SectionCard icon={Sliders} title="Event Defaults">
+        <SectionCard icon={Sliders} title="Event Ticket Pricing">
+          <FieldGroup label="Member Ticket Cost ($)" hint="Default ticket price for logged-in GST members.">
+            <Input
+              id="member-fee"
+              type="number"
+              value={memberFee}
+              onChange={(e) => setMemberFee(e.target.value)}
+            />
+          </FieldGroup>
+          <FieldGroup label="Non-Member Ticket Cost ($)" hint="Default ticket price for guests and non-members.">
+            <Input
+              id="non-member-fee"
+              type="number"
+              value={nonMemberFee}
+              onChange={(e) => setNonMemberFee(e.target.value)}
+            />
+          </FieldGroup>
           <FieldGroup label="Default Capacity" hint="Pre-fill new events with this attendee limit.">
             <Input id="default-capacity" type="number" defaultValue="200" />
           </FieldGroup>

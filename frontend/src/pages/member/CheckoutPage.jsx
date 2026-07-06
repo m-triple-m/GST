@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   CreditCard, Shield, ChevronRight, ArrowLeft,
   CheckCircle, Lock, User, Landmark, Loader2,
-  Calendar, Ticket
+  Calendar, Ticket, Users
 } from 'lucide-react';
 import api from '../../api';
 import { useCart } from '../../context/CartContext';
@@ -21,18 +21,19 @@ export default function CheckoutPage() {
   const [apiError, setApiError] = useState('');
   const [form, setForm] = useState({
     firstName: user?.first_name || '',
-    lastName:  user?.last_name  || '',
-    email:     user?.email      || '',
-    company:   '',
-    dietary:   '',
-    cardNum:   '',
-    expiry:    '',
-    cvv:       '',
+    lastName: user?.last_name || '',
+    email: user?.email || '',
+    company: '',
+    dietary: '',
+    cardNum: '',
+    expiry: '',
+    cvv: '',
+    paymentMethod: 'card',
   });
   const [complete, setComplete] = useState(false);
 
-  const inputCls  = "w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all";
-  const labelCls  = "block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2";
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all";
+  const labelCls = "block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2";
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -45,12 +46,12 @@ export default function CheckoutPage() {
       await Promise.all(
         items.map(item =>
           api.post(`/events/${item.eventId}/register`, {
-            attendee_name:  `${form.firstName} ${form.lastName}`.trim(),
+            attendee_name: `${form.firstName} ${form.lastName}`.trim(),
             attendee_email: form.email,
-            company:        form.company || undefined,
-            dietary_notes:  form.dietary || undefined,
-            attendee_type:  item.attendeeType,
-            payment_method: 'card',
+            company: form.company || undefined,
+            dietary_notes: form.dietary || undefined,
+            attendee_type: item.attendeeType,
+            payment_method: form.paymentMethod,
           })
         )
       );
@@ -122,11 +123,10 @@ export default function CheckoutPage() {
               {steps.map((s, i) => (
                 <div key={s} className="flex items-center flex-1 last:flex-none">
                   <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs border-2 transition-all duration-300 ${
-                      i < step  ? 'bg-teal-500 border-teal-500 text-white' :
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs border-2 transition-all duration-300 ${i < step ? 'bg-teal-500 border-teal-500 text-white' :
                       i === step ? 'border-teal-500 text-teal-600 bg-white ring-4 ring-teal-500/10' :
-                                   'border-slate-200 text-slate-300 bg-white'
-                    }`}>
+                        'border-slate-200 text-slate-300 bg-white'
+                      }`}>
                       {i < step ? '✓' : i + 1}
                     </div>
                     <span className={`text-[10px] font-black tracking-widest uppercase mt-3 ${i === step ? 'text-teal-600' : 'text-slate-300'}`}>{s}</span>
@@ -183,30 +183,58 @@ export default function CheckoutPage() {
                       <h2 className="text-xl font-black text-slate-800">Payment Details</h2>
                     </div>
 
-                    <div>
-                      <label className={labelCls}>Card Number</label>
-                      <div className="relative">
-                        <input className={inputCls + " pl-12"} placeholder="0000 0000 0000 0000" value={form.cardNum} onChange={e => set('cardNum', e.target.value)} />
-                        <CreditCard className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-5">
-                      <div>
-                        <label className={labelCls}>Expiry</label>
-                        <input className={inputCls} placeholder="MM / YY" value={form.expiry} onChange={e => set('expiry', e.target.value)} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>CVV</label>
-                        <input className={inputCls} placeholder="•••" type="password" value={form.cvv} onChange={e => set('cvv', e.target.value)} />
-                      </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => set('paymentMethod', 'card')}
+                        className={`p-4 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${form.paymentMethod === 'card'
+                          ? 'border-teal-500 bg-teal-50 text-teal-700'
+                          : 'border-slate-100 text-slate-500 hover:border-slate-200'
+                          }`}
+                      >
+                        <CreditCard className="w-4 h-4" /> Credit Card
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => set('paymentMethod', 'at_door')}
+                        className={`p-4 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${form.paymentMethod === 'at_door'
+                          ? 'border-teal-500 bg-teal-50 text-teal-700'
+                          : 'border-slate-100 text-slate-500 hover:border-slate-200'
+                          }`}
+                      >
+                        <Users className="w-4 h-4" /> Pay at Door
+                      </button>
                     </div>
 
-                    <div className="p-4 bg-teal-50 rounded-2xl border border-teal-100 flex gap-3">
-                      <Lock className="w-4 h-4 text-teal-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-[10px] text-teal-700 leading-relaxed font-bold uppercase tracking-wide">
-                        Payments are processed securely via SSL encryption. GST does not store card details.
-                      </p>
-                    </div>
+                    {form.paymentMethod === 'card' && (
+                      <div className="space-y-4 animate-fade-in">
+
+                        <div>
+                          <label className={labelCls}>Card Number</label>
+                          <div className="relative">
+                            <input className={inputCls + " pl-12"} placeholder="0000 0000 0000 0000" value={form.cardNum} onChange={e => set('cardNum', e.target.value)} />
+                            <CreditCard className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-5">
+                          <div>
+                            <label className={labelCls}>Expiry</label>
+                            <input className={inputCls} placeholder="MM / YY" value={form.expiry} onChange={e => set('expiry', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className={labelCls}>CVV</label>
+                            <input className={inputCls} placeholder="•••" type="password" value={form.cvv} onChange={e => set('cvv', e.target.value)} />
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-teal-50 rounded-2xl border border-teal-100 flex gap-3">
+                          <Lock className="w-4 h-4 text-teal-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-teal-700 leading-relaxed font-bold uppercase tracking-wide">
+                            Payments are processed securely via SSL encryption. GST does not store card details.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

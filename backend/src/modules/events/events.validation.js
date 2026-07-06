@@ -16,8 +16,11 @@ const createEventValidation = [
     }
     return true;
   }),
-  body('location_type').optional().isIn(['online','physical']),
+  body('location_type').optional().isIn(['online','physical','hybrid']),
   body('capacity').optional().isInt({ min: 0 }),
+  body('ticket_cost').optional().isFloat({ min: 0 }),
+  body('member_ticket_cost').optional().isFloat({ min: 0 }),
+  body('non_member_ticket_cost').optional().isFloat({ min: 0 }),
   body('featured').optional().isBoolean(),
   body('duration_minutes').optional({ nullable: true }).isInt({ min: 1, max: 1440 })
     .withMessage('Duration must be between 1 and 1440 minutes').toInt(),
@@ -30,6 +33,8 @@ const registerEventValidation = [
   body('company').optional().isString(),
   body('attendee_type').optional().isIn(['member','guest']),
   body('payment_method').optional().isIn(['card','at_door','waived']),
+  body('guests').optional().isArray(),
+  body('guests.*').optional().isString().trim().notEmpty(),
 ];
 
 const listQueryValidation = [

@@ -104,7 +104,7 @@ export default function ExecutiveBoardPage() {
               executives.map((exec, idx) => {
                 const fullName = `${exec.first_name} ${exec.last_name}`;
                 const role = exec.job_title || 'EXECUTIVE MEMBER';
-                const image = exec.profile_image || exec.avatar_url || exec.exec_photo_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80'; // Placeholder
+                const image = exec.profile_image || exec.avatar_url || exec.exec_photo_url || '/assets/avatar_placeholder.png'; // Placeholder
                 
                 return (
                   <div

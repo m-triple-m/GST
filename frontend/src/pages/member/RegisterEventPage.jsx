@@ -13,6 +13,24 @@ export default function RegisterEventPage() {
   const { isAuthenticated } = useAuth();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [globalSettings, setGlobalSettings] = useState({});
+
+  // Compute applicable ticket price: event-specific → global setting → ticket_cost → 0
+  // Each piece is converted to Number first so "0.00" (truthy string but 0 as number)
+  // correctly falls through to the next fallback via ||
+  const ticketPrice = (() => {
+    if (!event) return 0;
+    if (isAuthenticated) {
+      return Number(event.member_ticket_cost)
+        || Number(globalSettings.member_ticket_cost)
+        || Number(event.ticket_cost)
+        || 0;
+    }
+    return Number(event.non_member_ticket_cost)
+      || Number(globalSettings.non_member_ticket_cost)
+      || Number(event.ticket_cost)
+      || 0;
+  })();
 
   const [step, setStep] = useState(1);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -23,22 +41,27 @@ export default function RegisterEventPage() {
     email: '',
     company: '',
     dietary: '',
-    // Instantly set to 'member' if logged in — no API call needed
     attendeeType: isAuthenticated ? 'member' : 'guest',
+    guests: [],
+    paymentMethod: 'card',
   });
 
   useEffect(() => {
-    const fetchEvent = async () => {
+    const fetchData = async () => {
       try {
-        const { data } = await api.get(`/events/${id}`);
-        setEvent(data.data);
+        const [eventRes, settingsRes] = await Promise.all([
+          api.get(`/events/${id}`),
+          api.get('/settings'),
+        ]);
+        setEvent(eventRes.data.data);
+        setGlobalSettings(settingsRes.data.data || {});
       } catch (err) {
         setEvent(null);
       } finally {
         setLoading(false);
       }
     };
-    fetchEvent();
+    fetchData();
   }, [id]);
 
   if (loading) {
@@ -77,7 +100,8 @@ export default function RegisterEventPage() {
           company: formData.company,
           dietary_notes: formData.dietary,
           attendee_type: formData.attendeeType,
-          payment_method: 'card', // Currently hardcoded to card
+          guests: formData.guests,
+          payment_method: formData.paymentMethod,
         });
         setStep(3);
       } catch (err) {
@@ -163,25 +187,47 @@ export default function RegisterEventPage() {
                   <>
                     <h2 className="text-xl font-bold text-slate-800 mb-6">Payment Method</h2>
                     <div className="space-y-4">
-                      <div className="p-4 rounded-2xl border-2 border-teal-500 bg-teal-50 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, paymentMethod: 'card' })}
+                        className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                          formData.paymentMethod === 'card'
+                            ? 'border-teal-500 bg-teal-50'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
                         <div className="flex items-center gap-4">
-                          <CreditCard className="w-6 h-6 text-teal-600" />
-                          <div>
-                            <p className="font-bold text-slate-800">Credit or Debit Card</p>
+                          <CreditCard className={`w-6 h-6 ${formData.paymentMethod === 'card' ? 'text-teal-600' : 'text-slate-400'}`} />
+                          <div className="text-left">
+                            <p className={`font-bold ${formData.paymentMethod === 'card' ? 'text-slate-800' : 'text-slate-600'}`}>Credit or Debit Card</p>
                             <p className="text-xs text-slate-500">Secure transaction via Stripe</p>
                           </div>
                         </div>
-                        <div className="w-5 h-5 rounded-full border-4 border-teal-500 bg-white" />
-                      </div>
-                      <div className="p-4 rounded-2xl border border-slate-200 opacity-50 flex items-center justify-between cursor-not-allowed">
+                        <div className={`w-5 h-5 rounded-full border-4 ${
+                          formData.paymentMethod === 'card' ? 'border-teal-500 bg-white' : 'border-slate-300 bg-transparent'
+                        }`} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, paymentMethod: 'at_door' })}
+                        className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                          formData.paymentMethod === 'at_door'
+                            ? 'border-teal-500 bg-teal-50'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
                         <div className="flex items-center gap-4">
-                          <Users className="w-6 h-6 text-slate-400" />
-                          <div>
-                            <p className="font-bold text-slate-400">Pay at Door</p>
-                            <p className="text-xs text-slate-400">Cash or check only</p>
+                          <Users className={`w-6 h-6 ${formData.paymentMethod === 'at_door' ? 'text-teal-600' : 'text-slate-400'}`} />
+                          <div className="text-left">
+                            <p className={`font-bold ${formData.paymentMethod === 'at_door' ? 'text-slate-800' : 'text-slate-600'}`}>In Person (Cash)</p>
+                            <p className="text-xs text-slate-500">Pay later at the event venue</p>
                           </div>
                         </div>
-                      </div>
+                        <div className={`w-5 h-5 rounded-full border-4 ${
+                          formData.paymentMethod === 'at_door' ? 'border-teal-500 bg-white' : 'border-slate-300 bg-transparent'
+                        }`} />
+                      </button>
                     </div>
                   </>
                 )}
@@ -210,8 +256,14 @@ export default function RegisterEventPage() {
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Registration ({formData.attendeeType})</span>
-                  <span className="font-bold text-slate-800">{formData.attendeeType === 'member' ? '$25.00' : '$35.00'}</span>
+                  <span className="font-bold text-slate-800">${ticketPrice.toFixed(2)}</span>
                 </div>
+                {formData.guests.length > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">Guests ({formData.guests.length})</span>
+                    <span className="font-bold text-slate-800">${(ticketPrice * formData.guests.length).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Processing Fee</span>
                   <span className="font-bold text-slate-800">$0.00</span>
@@ -219,7 +271,7 @@ export default function RegisterEventPage() {
                 <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
                   <span className="font-bold text-slate-800">Total</span>
                   <span className="text-2xl font-black text-teal-600">
-                    {formData.attendeeType === 'member' ? '$25.00' : '$35.00'}
+                    ${(ticketPrice * (1 + formData.guests.length)).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -414,6 +466,49 @@ function Step1({ formData, setFormData, isAuthenticated }) {
             </button>
           </div>
         )}
+      </div>
+
+      <div className="space-y-4 pt-4 border-t border-slate-100">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Additional Guests</label>
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, guests: [...formData.guests, ''] })}
+            className="text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 px-3 py-1.5 rounded-lg"
+          >
+            + Add Guest
+          </button>
+        </div>
+        {formData.guests.map((guest, idx) => (
+          <div key={idx} className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                required
+                value={guest}
+                onChange={(e) => {
+                  const newGuests = [...formData.guests];
+                  newGuests[idx] = e.target.value;
+                  setFormData({ ...formData, guests: newGuests });
+                }}
+                className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                placeholder={`Guest ${idx + 1} Name`}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const newGuests = [...formData.guests];
+                newGuests.splice(idx, 1);
+                setFormData({ ...formData, guests: newGuests });
+              }}
+              className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-100 transition-colors"
+            >
+              &times;
+            </button>
+          </div>
+        ))}
       </div>
     </>
   );

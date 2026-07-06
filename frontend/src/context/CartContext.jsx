@@ -24,7 +24,7 @@ export function CartProvider({ children }) {
 
   /** Add or update an event in the cart */
   const addToCart = (event, attendeeType = 'member', qty = 1) => {
-    const price = attendeeType === 'member' ? 25 : 35;
+    const price = Number(event.ticket_cost) || 0;
     setItems(prev => {
       const existing = prev.find(i => i.eventId === event.id && i.attendeeType === attendeeType);
       if (existing) {
