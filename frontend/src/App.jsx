@@ -43,6 +43,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminMembers from './pages/admin/AdminMembers';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminContactInquiries from './pages/admin/AdminContactInquiries';
 
 export default function App() {
   return (
@@ -87,6 +88,7 @@ export default function App() {
                   <Route path="/dashboard/events/new" element={<ScheduleEventPage />} />
                   <Route path="/dashboard/events/:id/edit" element={<ScheduleEventPage />} />
                   <Route path="/dashboard/members" element={<AdminMembers />} />
+                  <Route path="/dashboard/contact-inquiries" element={<AdminContactInquiries />} />
                 </Route>
               </Route>
 
@@ -100,12 +102,15 @@ export default function App() {
 
             {/* ── ADMIN — admin role required ── */}
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-              <Route element={<AdminLayout />}>
+                          <Route element={<AdminLayout />}>
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/members" element={<AdminMembers />} />
                 <Route path="/admin/events" element={<AdminEvents />} />
+                <Route path="/admin/events/new" element={<ScheduleEventPage />} />
+                <Route path="/admin/events/:id/edit" element={<ScheduleEventPage />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/admin/profile" element={<SettingsPage />} />
+                <Route path="/admin/contact-inquiries" element={<AdminContactInquiries />} />
               </Route>
             </Route>
 

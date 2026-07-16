@@ -28,4 +28,11 @@ const listInquiries = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { submitContact, subscribe, listInquiries };
+const markAsRead = async (req, res, next) => {
+  try {
+    await service.markAsRead(Number(req.params.id));
+    sendSuccess(res, 200, 'Inquiry marked as read.');
+  } catch (err) { next(err); }
+};
+
+module.exports = { submitContact, subscribe, listInquiries, markAsRead };

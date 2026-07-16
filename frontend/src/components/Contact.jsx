@@ -1,23 +1,29 @@
 import { useState } from 'react';
 import { Mail, MapPin, Phone, Send, CheckCircle } from 'lucide-react';
+import api from '../api';
 
 export default function Contact() {
   const [formState, setFormState] = useState({ name: '', email: '', subject: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setFormState({ ...formState, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate submission
-    setTimeout(() => {
-      setLoading(false);
+    setError('');
+    try {
+      await api.post('/contact', formState);
       setSubmitted(true);
-    }, 1200);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send message. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -110,6 +116,11 @@ export default function Contact() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 space-y-6">
+                {error && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-600 font-medium">
+                    {error}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label htmlFor="contact-name" className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
@@ -149,13 +160,14 @@ export default function Contact() {
                   <select
                     id="contact-subject"
                     name="subject"
+                    required
                     value={formState.subject}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all duration-200 bg-white"
                   >
                     <option value="">Select a topic...</option>
                     <option value="membership">Membership Inquiry</option>
-                    <option value="events">Events & Sponsorship</option>
+                    <option value="events">Events &amp; Sponsorship</option>
                     <option value="speaking">Speaking Opportunity</option>
                     <option value="scholarship">Student Scholarships</option>
                     <option value="other">Other</option>

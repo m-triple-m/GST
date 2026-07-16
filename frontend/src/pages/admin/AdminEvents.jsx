@@ -129,7 +129,7 @@ export default function AdminEvents() {
             <RefreshCw className="w-4 h-4" />
           </button>
           <Link
-            to="/dashboard/events/new"
+            to="/admin/events/new"
             className="btn-teal px-4 py-2 rounded-lg text-white text-xs font-bold flex items-center gap-2"
           >
             <Plus className="w-3.5 h-3.5" /> Create Event
@@ -201,11 +201,28 @@ export default function AdminEvents() {
             <Calendar className="w-16 h-16 text-slate-200" />
             <p className="text-slate-400 font-bold">No events found</p>
             <Link
-              to="/dashboard/events/new"
+              to="/admin/events/new"
               className="btn-teal px-5 py-2.5 rounded-xl text-white text-xs font-black flex items-center gap-2"
             >
               <Plus className="w-3.5 h-3.5" /> Create the first event
             </Link>
+          </div>
+        )}
+
+        {/* ── Stats Summary (top) ── */}
+        {!loading && events.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Events',    value: events.length },
+              { label: 'Upcoming',        value: events.filter(e => e.status === 'upcoming').length },
+              { label: 'Past',            value: events.filter(e => e.status === 'past').length },
+              { label: 'Total Registrations', value: Object.values(regCounts).reduce((a, b) => a + b, 0) },
+            ].map(stat => (
+              <div key={stat.label} className="bg-white rounded-2xl border border-slate-200 p-5 text-center">
+                <p className="text-2xl font-black text-slate-900">{stat.value}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{stat.label}</p>
+              </div>
+            ))}
           </div>
         )}
 
@@ -321,7 +338,7 @@ export default function AdminEvents() {
                           ) : (
                             <>
                               <Link
-                                to={`/dashboard/events/${event.id}/edit`}
+                                to={`/admin/events/${event.id}/edit`}
                                 className="p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all"
                                 title="Edit event"
                               >
@@ -350,23 +367,6 @@ export default function AdminEvents() {
                 </div>
               );
             })}
-          </div>
-        )}
-
-        {/* ── Stats Summary (bottom) ── */}
-        {!loading && events.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Events',    value: events.length },
-              { label: 'Upcoming',        value: events.filter(e => e.status === 'upcoming').length },
-              { label: 'Past',            value: events.filter(e => e.status === 'past').length },
-              { label: 'Total Registrations', value: Object.values(regCounts).reduce((a, b) => a + b, 0) },
-            ].map(stat => (
-              <div key={stat.label} className="bg-white rounded-2xl border border-slate-200 p-5 text-center">
-                <p className="text-2xl font-black text-slate-900">{stat.value}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{stat.label}</p>
-              </div>
-            ))}
           </div>
         )}
 

@@ -5,8 +5,10 @@ const { buildPagination } = require('../../utils/response');
 const getStats = () => repo.getDashboardStats();
 
 const getAuditLog = async (query) => {
-  const page   = Math.max(1, query.page  || 1);
-  const limit  = Math.min(100, query.limit || 20);
+  const parsedPage = parseInt(query.page, 10);
+  const parsedLimit = parseInt(query.limit, 10);
+  const page   = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const limit  = !isNaN(parsedLimit) && parsedLimit > 0 ? Math.min(100, parsedLimit) : 20;
   const offset = (page - 1) * limit;
   const [logs, total] = await Promise.all([
     repo.getAuditLog({ limit, offset }),

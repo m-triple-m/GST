@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Mail, MapPin, Phone, MessageSquare, Send, CheckCircle, ExternalLink, Globe, Link2 } from 'lucide-react';
+import { Mail, MapPin, Phone, Send, CheckCircle, ExternalLink, Globe, Link2 } from 'lucide-react';
+import api from '../../api';
 
 const contactInfo = [
   {
@@ -22,10 +23,21 @@ const contactInfo = [
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    setLoading(true);
+    setError('');
+    try {
+      await api.post('/contact', form);
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send message. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputCls = "w-full px-4 py-3.5 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all";
@@ -88,7 +100,7 @@ export default function ContactPage() {
               <div className="absolute inset-0 seismic-pattern opacity-10 group-hover:scale-110 transition-transform duration-500" />
               <div className="relative z-10">
                 <h3 className="text-xl font-bold mb-3">Newsletter</h3>
-                <p className="text-teal-50 text-sm mb-6 leading-relaxed">Subscribe to the GST "Tulsa Geophysical Society" monthly email for event updates and technical bulletins.</p>
+                <p className="text-teal-50 text-sm mb-6 leading-relaxed">Subscribe to the GST monthly email for event updates and technical bulletins.</p>
                 <div className="flex gap-2">
                   <input placeholder="Email" className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-xs text-white placeholder-white/40 focus:outline-none" />
                   <button className="bg-white text-teal-600 p-2.5 rounded-xl hover:scale-105 transition-all"><Send className="w-4 h-4" /></button>
@@ -121,10 +133,17 @@ export default function ContactPage() {
                   <div className="section-heading mb-10">
                     <h2 className="text-2xl font-black text-slate-900">Send us a Message</h2>
                   </div>
+
+                  {error && (
+                    <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-600 font-medium">
+                      {error}
+                    </div>
+                  )}
+
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid sm:grid-cols-2 gap-6">
                       <div>
-                        <label className={labelCls}>Your Name</label>
+                        <label className={labelCls}>Your Name *</label>
                         <input 
                           required 
                           className={inputCls} 
@@ -134,7 +153,7 @@ export default function ContactPage() {
                         />
                       </div>
                       <div>
-                        <label className={labelCls}>Email Address</label>
+                        <label className={labelCls}>Email Address *</label>
                         <input 
                           required 
                           type="email" 
@@ -146,7 +165,7 @@ export default function ContactPage() {
                       </div>
                     </div>
                     <div>
-                      <label className={labelCls}>Subject</label>
+                      <label className={labelCls}>Subject *</label>
                       <input 
                         required 
                         className={inputCls} 
@@ -156,7 +175,7 @@ export default function ContactPage() {
                       />
                     </div>
                     <div>
-                      <label className={labelCls}>Message</label>
+                      <label className={labelCls}>Message *</label>
                       <textarea 
                         required 
                         rows={6} 
@@ -166,9 +185,22 @@ export default function ContactPage() {
                         onChange={e => setForm({...form, message: e.target.value})} 
                       />
                     </div>
-                    <button type="submit" className="w-full btn-teal px-8 py-4 rounded-xl text-white font-bold text-sm shadow-xl shadow-teal-600/20 flex items-center justify-center gap-2">
-                      <span>Send Message</span>
-                      <Send className="w-4 h-4" />
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full btn-teal px-8 py-4 rounded-xl text-white font-bold text-sm shadow-xl shadow-teal-600/20 flex items-center justify-center gap-2 disabled:opacity-70"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <span>Send Message</span>
+                          <Send className="w-4 h-4" />
+                        </>
+                      )}
                     </button>
                   </form>
                 </>

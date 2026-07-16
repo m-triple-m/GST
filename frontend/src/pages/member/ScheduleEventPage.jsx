@@ -87,7 +87,6 @@ export default function ScheduleEventPage() {
 
   // ── Fetch Event for Editing ─────────────────────────────
   useEffect(() => {
-    if (!id) return;
     const loadEvent = async () => {
       try {
         const { data } = await api.get(`/events/${id}`);
@@ -251,7 +250,7 @@ export default function ScheduleEventPage() {
               New Event
             </button>
             <button
-              onClick={() => navigate('/dashboard/manage-events')}
+              onClick={() => navigate(window.location.pathname.startsWith('/admin') ? '/admin/events' : '/dashboard/manage-events')}
               className="flex-1 py-3 bg-teal-600 rounded-xl text-sm font-bold text-white hover:bg-teal-500 transition-all"
             >
               Manage Events
@@ -540,103 +539,110 @@ export default function ScheduleEventPage() {
             </section>
 
             {/* Post-Event Media */}
-            <section className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-1 h-full bg-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                <LinkIcon className="w-4 h-4 text-purple-500" /> Post-Event Media & Resources
-              </h2>
-              <div className="space-y-5">
-                
-                {/* Video URL */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
-                    Video Recording URL (YouTube/Vimeo)
-                  </label>
-                  <div className="relative">
-                    <Monitor className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      value={form.video_url}
-                      onChange={(e) => set('video_url', e.target.value)}
-                      placeholder="https://youtube.com/watch?v=..."
-                      className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all placeholder:text-slate-300"
-                    />
-                  </div>
-                </div>
-
-                {/* Gallery */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
-                    Gallery Images
-                  </label>
-                  <div className="space-y-3">
-                    {form.gallery.map((url, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                        <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-teal-600 truncate hover:underline max-w-[80%]">
-                          {url.split('/').pop()}
-                        </a>
-                        <button type="button" onClick={() => set('gallery', form.gallery.filter((_, idx) => idx !== i))} className="p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+            {(() => {
+              const isPastEvent = form.status === 'past' || (form.event_date && new Date(form.event_date) < new Date(new Date().setHours(0,0,0,0)));
+              if (!isPastEvent) return null;
+              
+              return (
+                <section className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4 text-purple-500" /> Post-Event Media & Resources
+                  </h2>
+                  <div className="space-y-5">
+                    
+                    {/* Video URL */}
                     <div>
-                      <input
-                        type="file"
-                        id="gallery-upload"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => handleFileUpload(e, 'gallery')}
-                        disabled={uploadingMedia}
-                      />
-                      <label
-                        htmlFor="gallery-upload"
-                        className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-dashed border-slate-200 text-slate-500 hover:border-teal-500 hover:text-teal-600 transition-colors ${uploadingMedia ? 'opacity-50 pointer-events-none' : ''}`}
-                      >
-                        {uploadingMedia ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-                        Upload Image
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                        Video Recording URL (YouTube/Vimeo)
                       </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Keynotes / Resources */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
-                    Resources & Presentations
-                  </label>
-                  <div className="space-y-3">
-                    {form.keynotes.map((url, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                        <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-teal-600 truncate hover:underline max-w-[80%]">
-                          {url.split('/').pop()}
-                        </a>
-                        <button type="button" onClick={() => set('keynotes', form.keynotes.filter((_, idx) => idx !== i))} className="p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div className="relative">
+                        <Monitor className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          value={form.video_url}
+                          onChange={(e) => set('video_url', e.target.value)}
+                          placeholder="https://youtube.com/watch?v=..."
+                          className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all placeholder:text-slate-300"
+                        />
                       </div>
-                    ))}
-                    <div>
-                      <input
-                        type="file"
-                        id="resource-upload"
-                        className="hidden"
-                        accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,text/*"
-                        onChange={(e) => handleFileUpload(e, 'keynotes')}
-                        disabled={uploadingMedia}
-                      />
-                      <label
-                        htmlFor="resource-upload"
-                        className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-dashed border-slate-200 text-slate-500 hover:border-purple-500 hover:text-purple-600 transition-colors ${uploadingMedia ? 'opacity-50 pointer-events-none' : ''}`}
-                      >
-                        {uploadingMedia ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
-                        Upload Resource
-                      </label>
                     </div>
-                  </div>
-                </div>
 
-              </div>
-            </section>
+                    {/* Gallery */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                        Gallery Images
+                      </label>
+                      <div className="space-y-3">
+                        {form.gallery.map((url, i) => (
+                          <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                            <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-teal-600 truncate hover:underline max-w-[80%]">
+                              {url.split('/').pop()}
+                            </a>
+                            <button type="button" onClick={() => set('gallery', form.gallery.filter((_, idx) => idx !== i))} className="p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <div>
+                          <input
+                            type="file"
+                            id="gallery-upload"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, 'gallery')}
+                            disabled={uploadingMedia}
+                          />
+                          <label
+                            htmlFor="gallery-upload"
+                            className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-dashed border-slate-200 text-slate-500 hover:border-teal-500 hover:text-teal-600 transition-colors ${uploadingMedia ? 'opacity-50 pointer-events-none' : ''}`}
+                          >
+                            {uploadingMedia ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                            Upload Image
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Keynotes / Resources */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                        Resources & Presentations
+                      </label>
+                      <div className="space-y-3">
+                        {form.keynotes.map((url, i) => (
+                          <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                            <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-teal-600 truncate hover:underline max-w-[80%]">
+                              {url.split('/').pop()}
+                            </a>
+                            <button type="button" onClick={() => set('keynotes', form.keynotes.filter((_, idx) => idx !== i))} className="p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <div>
+                          <input
+                            type="file"
+                            id="resource-upload"
+                            className="hidden"
+                            accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,text/*"
+                            onChange={(e) => handleFileUpload(e, 'keynotes')}
+                            disabled={uploadingMedia}
+                          />
+                          <label
+                            htmlFor="resource-upload"
+                            className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-dashed border-slate-200 text-slate-500 hover:border-purple-500 hover:text-purple-600 transition-colors ${uploadingMedia ? 'opacity-50 pointer-events-none' : ''}`}
+                          >
+                            {uploadingMedia ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                            Upload Resource
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </section>
+              );
+            })()}
           </div>
 
           {/* ── Right: timeline + actions ─────────────────── */}

@@ -510,7 +510,7 @@ export default function AdminMembers() {
                         <td className="px-6 py-4 text-sm text-slate-500 font-medium">{joined}</td>
                         <td className="px-6 py-4"><StatusBadge status={m.status} /></td>
                         <td className="px-8 py-4 text-right">
-                          <div className="flex justify-end items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex justify-end items-center gap-1">
                             {isActing
                               ? <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
                               : (

@@ -53,14 +53,25 @@ export default function EventsPage() {
     fetchEvents();
   }, []);
 
-  const filtered = events.filter((e) => {
-    const matchSearch = e.title.toLowerCase().includes(search.toLowerCase()) ||
-      (e.category && e.category.toLowerCase().includes(search.toLowerCase())) ||
-      (e.speaker_name && e.speaker_name.toLowerCase().includes(search.toLowerCase()));
-    const matchCat = activeCategory === 'All' || e.event_type === activeCategory;
-    const matchStatus = activeStatus === 'All' || e.status === activeStatus.toLowerCase();
-    return matchSearch && matchCat && matchStatus;
-  });
+  const filtered = events
+    .filter((e) => {
+      const matchSearch = e.title.toLowerCase().includes(search.toLowerCase()) ||
+        (e.category && e.category.toLowerCase().includes(search.toLowerCase())) ||
+        (e.speaker_name && e.speaker_name.toLowerCase().includes(search.toLowerCase()));
+      const matchCat = activeCategory === 'All' || e.event_type === activeCategory;
+      const matchStatus = activeStatus === 'All' || e.status === activeStatus.toLowerCase();
+      return matchSearch && matchCat && matchStatus;
+    })
+    .sort((a, b) => {
+      // Upcoming always before past
+      if (a.status === 'upcoming' && b.status !== 'upcoming') return -1;
+      if (a.status !== 'upcoming' && b.status === 'upcoming') return 1;
+      // Within upcoming: soonest first (ascending)
+      if (a.status === 'upcoming') return new Date(a.event_date) - new Date(b.event_date);
+      // Within past: most recent first (descending)
+      return new Date(b.event_date) - new Date(a.event_date);
+    });
+
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20">

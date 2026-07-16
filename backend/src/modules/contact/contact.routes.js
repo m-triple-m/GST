@@ -10,7 +10,9 @@ const { contactValidation, newsletterValidation } = require('./contact.validatio
 router.post('/', contactValidation, ctrl.submitContact);
 // POST /api/contact/newsletter
 router.post('/newsletter', newsletterValidation, ctrl.subscribe);
-// GET  /api/contact/inquiries (admin only)
-router.get('/inquiries', verifyToken, requireRole('admin'), ctrl.listInquiries);
+// GET  /api/contact/inquiries (admin + executive)
+router.get('/inquiries', verifyToken, requireRole('admin', 'executive'), ctrl.listInquiries);
+// PATCH /api/contact/inquiries/:id/read (admin + executive)
+router.patch('/inquiries/:id/read', verifyToken, requireRole('admin', 'executive'), ctrl.markAsRead);
 
 module.exports = router;

@@ -10,6 +10,15 @@ const getDashboardStats = async () => {
   const [[{ unread_inquiries }]] = await db.execute('SELECT COUNT(*) as unread_inquiries FROM contact_inquiries WHERE is_read=0');
   const [[{ new_sponsor_enquiries }]] = await db.execute("SELECT COUNT(*) as new_sponsor_enquiries FROM sponsor_enquiries WHERE status='new'");
 
+  // Membership growth over the last 12 months (including current month)
+  const [growth_data] = await db.execute(`
+    SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count 
+    FROM members 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 11 MONTH)
+    GROUP BY month 
+    ORDER BY month ASC
+  `);
+
   return {
     total_members,
     pending_applications,
@@ -18,6 +27,7 @@ const getDashboardStats = async () => {
     total_registrations,
     unread_inquiries,
     new_sponsor_enquiries,
+    membership_growth: growth_data,
   };
 };
 
@@ -28,7 +38,7 @@ const getAuditLog = async ({ limit, offset }) => {
      LEFT JOIN users u ON u.id = a.user_id
      ORDER BY a.created_at DESC
      LIMIT ? OFFSET ?`,
-    [limit, offset]
+    [Number(limit), Number(offset)]
   );
   return rows;
 };

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Settings,
-  Globe, LogOut, Plus
+  Globe, LogOut, Plus, Mail
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
