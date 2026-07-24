@@ -12,8 +12,7 @@ const saveInquiry = async (data) => {
 
 const listInquiries = async ({ limit, offset }) => {
   const [rows] = await db.execute(
-    'SELECT * FROM contact_inquiries ORDER BY created_at DESC LIMIT ? OFFSET ?',
-    [Number(limit), Number(offset)]
+    `SELECT * FROM contact_inquiries ORDER BY created_at DESC LIMIT ${Number(limit)} OFFSET ${Number(offset)}`
   );
   return rows;
 };

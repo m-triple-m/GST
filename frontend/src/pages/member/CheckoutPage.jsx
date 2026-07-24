@@ -42,15 +42,16 @@ export default function CheckoutPage() {
     setSubmitting(true);
     setApiError('');
     try {
-      // Fire one registration request per cart item
+      // Fire one registration request per cart item, including any named guests
       await Promise.all(
         items.map(item =>
           api.post(`/events/${item.eventId}/register`, {
-            attendee_name: `${form.firstName} ${form.lastName}`.trim(),
+            attendee_name:  `${form.firstName} ${form.lastName}`.trim(),
             attendee_email: form.email,
-            company: form.company || undefined,
-            dietary_notes: form.dietary || undefined,
-            attendee_type: item.attendeeType,
+            company:        form.company       || undefined,
+            dietary_notes:  form.dietary       || undefined,
+            attendee_type:  item.attendeeType,
+            guests:         item.guests?.filter(g => g?.trim()) || [],
             payment_method: form.paymentMethod,
           })
         )
@@ -183,26 +184,47 @@ export default function CheckoutPage() {
                       <h2 className="text-xl font-black text-slate-800">Payment Details</h2>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-4">
                       <button
                         type="button"
                         onClick={() => set('paymentMethod', 'card')}
-                        className={`p-4 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${form.paymentMethod === 'card'
-                          ? 'border-teal-500 bg-teal-50 text-teal-700'
-                          : 'border-slate-100 text-slate-500 hover:border-slate-200'
-                          }`}
+                        className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                          form.paymentMethod === 'card'
+                            ? 'border-teal-500 bg-teal-50'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
                       >
-                        <CreditCard className="w-4 h-4" /> Credit Card
+                        <div className="flex items-center gap-4">
+                          <CreditCard className={`w-6 h-6 ${form.paymentMethod === 'card' ? 'text-teal-600' : 'text-slate-400'}`} />
+                          <div className="text-left">
+                            <p className={`font-bold ${form.paymentMethod === 'card' ? 'text-slate-800' : 'text-slate-600'}`}>Credit or Debit Card</p>
+                            <p className="text-xs text-slate-500">Secure transaction via Stripe</p>
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-4 flex-shrink-0 ${
+                          form.paymentMethod === 'card' ? 'border-teal-500 bg-white' : 'border-slate-300 bg-transparent'
+                        }`} />
                       </button>
+
                       <button
                         type="button"
                         onClick={() => set('paymentMethod', 'at_door')}
-                        className={`p-4 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 ${form.paymentMethod === 'at_door'
-                          ? 'border-teal-500 bg-teal-50 text-teal-700'
-                          : 'border-slate-100 text-slate-500 hover:border-slate-200'
-                          }`}
+                        className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                          form.paymentMethod === 'at_door'
+                            ? 'border-teal-500 bg-teal-50'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
                       >
-                        <Users className="w-4 h-4" /> Pay at Door
+                        <div className="flex items-center gap-4">
+                          <Users className={`w-6 h-6 ${form.paymentMethod === 'at_door' ? 'text-teal-600' : 'text-slate-400'}`} />
+                          <div className="text-left">
+                            <p className={`font-bold ${form.paymentMethod === 'at_door' ? 'text-slate-800' : 'text-slate-600'}`}>In Person (Cash)</p>
+                            <p className="text-xs text-slate-500">Pay later at the event venue</p>
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-4 flex-shrink-0 ${
+                          form.paymentMethod === 'at_door' ? 'border-teal-500 bg-white' : 'border-slate-300 bg-transparent'
+                        }`} />
                       </button>
                     </div>
 
@@ -255,19 +277,35 @@ export default function CheckoutPage() {
                         <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Email</span>
                         <span className="text-slate-900 font-bold text-sm">{form.email}</span>
                       </div>
-                      {items.map(item => (
-                        <div key={`${item.eventId}-${item.attendeeType}`} className="flex justify-between px-6 py-4">
-                          <span className="text-slate-500 text-sm font-medium flex items-center gap-2">
-                            <Calendar className="w-3.5 h-3.5 text-teal-500" />
-                            {item.title.length > 30 ? item.title.slice(0, 30) + '…' : item.title}
-                            <span className="text-xs text-slate-400">×{item.qty}</span>
-                          </span>
-                          <span className="text-slate-900 font-bold text-sm">${(item.price * item.qty).toLocaleString()}</span>
-                        </div>
-                      ))}
+                      {items.map(item => {
+                        const guestPrice = item.guestPrice ?? item.price;
+                        const guestCount = item.guests?.filter(g => g?.trim()).length ?? 0;
+                        const lineTotal  = item.price * item.qty + guestPrice * guestCount;
+                        return (
+                          <>
+                            <div key={`${item.eventId}-${item.attendeeType}`} className="flex justify-between px-6 py-4">
+                              <span className="text-slate-500 text-sm font-medium flex items-center gap-2">
+                                <Calendar className="w-3.5 h-3.5 text-teal-500" />
+                                {item.title.length > 28 ? item.title.slice(0, 28) + '…' : item.title}
+                                <span className="text-xs text-slate-400">×{item.qty}</span>
+                              </span>
+                              <span className="text-slate-900 font-bold text-sm">${(item.price * item.qty).toFixed(2)}</span>
+                            </div>
+                            {guestCount > 0 && (
+                              <div className="flex justify-between px-6 pb-3">
+                                <span className="text-slate-400 text-xs font-medium flex items-center gap-1.5 pl-5">
+                                  <Users className="w-3 h-3" />
+                                  {guestCount} guest{guestCount > 1 ? 's' : ''}
+                                </span>
+                                <span className="text-slate-600 font-semibold text-xs">${(guestPrice * guestCount).toFixed(2)}</span>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })}
                       <div className="flex justify-between px-6 py-4">
                         <span className="text-slate-900 text-sm font-black uppercase tracking-wide">Total</span>
-                        <span className="text-teal-600 font-black text-lg">${subtotal.toLocaleString()}</span>
+                        <span className="text-teal-600 font-black text-lg">${subtotal.toFixed(2)}</span>
                       </div>
                     </div>
 
@@ -315,15 +353,29 @@ export default function CheckoutPage() {
                 <div className="absolute inset-0 seismic-pattern opacity-10" />
                 <h3 className="text-xs font-black text-teal-400 uppercase tracking-[0.2em] mb-4 relative z-10">Order Summary</h3>
                 <div className="relative z-10 space-y-3">
-                  {items.map(item => (
-                    <div key={`${item.eventId}-${item.attendeeType}`} className="flex justify-between text-xs">
-                      <span className="text-slate-400 truncate mr-2">{item.title.slice(0, 22)}… ×{item.qty}</span>
-                      <span className="text-white font-bold">${(item.price * item.qty)}</span>
-                    </div>
-                  ))}
+                  {items.map(item => {
+                    const guestPrice = item.guestPrice ?? item.price;
+                    const guestCount = item.guests?.filter(g => g?.trim()).length ?? 0;
+                    return (
+                      <div key={`${item.eventId}-${item.attendeeType}`} className="space-y-0.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-400 truncate mr-2">
+                            {item.title.length > 20 ? item.title.slice(0, 20) + '…' : item.title} ×{item.qty}
+                          </span>
+                          <span className="text-white font-bold">${(item.price * item.qty).toFixed(2)}</span>
+                        </div>
+                        {guestCount > 0 && (
+                          <div className="flex justify-between text-[10px] pl-2">
+                            <span className="text-slate-500">{guestCount} guest{guestCount > 1 ? 's' : ''}</span>
+                            <span className="text-slate-400">${(guestPrice * guestCount).toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   <div className="pt-3 border-t border-white/10 flex justify-between">
                     <span className="text-slate-300 font-bold text-xs uppercase tracking-widest">Total</span>
-                    <span className="text-teal-400 font-black">${subtotal.toLocaleString()}</span>
+                    <span className="text-teal-400 font-black">${subtotal.toFixed(2)}</span>
                   </div>
                 </div>
               </div>

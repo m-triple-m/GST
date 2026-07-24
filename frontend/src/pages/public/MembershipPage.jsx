@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api';
 import {
   User, Briefcase, ChevronRight,
-  Check, ArrowRight, Award, FileText, Send, CheckCircle
+  Check, ArrowRight, Award, FileText, Send, CheckCircle, Loader2
 } from 'lucide-react';
 import {
-  TIERS, INITIAL_FORM,
+  TIERS as STATIC_TIERS, INITIAL_FORM,
   EMAIL_RE, PHONE_RE, URL_RE,
   EXPERIENCE_OPTIONS, INDUSTRY_OPTIONS,
 } from './membership.config';
@@ -37,6 +37,38 @@ export default function MembershipPage() {
   const [emailChecking, setEmailChecking] = useState(false);
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState(INITIAL_FORM);
+  const [tiers, setTiers] = useState(STATIC_TIERS);
+  const [tiersLoading, setTiersLoading] = useState(true);
+
+  /** Fetch live tier prices set by the super admin from /settings */
+  useEffect(() => {
+    const fetchTierPrices = async () => {
+      try {
+        const { data } = await api.get('/settings');
+        if (data?.data) {
+          const settings = data.data;
+          setTiers(STATIC_TIERS.map((tier) => {
+            const rawPrice = settings[`tier_${tier.id}_price`];
+            if (rawPrice !== undefined && rawPrice !== '' && rawPrice !== null) {
+              const numeric = parseFloat(rawPrice);
+              const formatted = isNaN(numeric)
+                ? rawPrice
+                : numeric === 0
+                  ? 'Free'
+                  : `$${numeric.toFixed(2)}/yr`;
+              return { ...tier, price: formatted };
+            }
+            return tier; // keep static default if admin hasn't set it yet
+          }));
+        }
+      } catch {
+        // Fail open — if settings can't be fetched, use static defaults
+      } finally {
+        setTiersLoading(false);
+      }
+    };
+    fetchTierPrices();
+  }, []);
 
   /** Clear the error for a field on every change */
   const update = (field, val) => {
@@ -376,47 +408,53 @@ export default function MembershipPage() {
               <Award className="w-5 h-5 text-teal-500" /> Select Membership Tier
             </h2>
             <p className="text-slate-400 text-sm mb-6">Choose the tier that best fits your situation</p>
-            <div className="space-y-4">
-              {TIERS.map((tier) => (
-                <label
-                  key={tier.id}
-                  htmlFor={`tier-${tier.id}`}
-                  className={`block cursor-pointer rounded-2xl p-6 border-2 transition-all duration-200 ${form.tier === tier.id
-                      ? 'border-teal-500 bg-teal-50'
-                      : 'border-slate-200 bg-white hover:border-teal-300'
-                    }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <input
-                      type="radio"
-                      id={`tier-${tier.id}`}
-                      name="tier"
-                      value={tier.id}
-                      checked={form.tier === tier.id}
-                      onChange={() => update('tier', tier.id)}
-                      className="mt-1 accent-teal-500"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="font-bold text-slate-800 text-lg">{tier.name}</h3>
-                        {tier.popular && (
-                          <span className="px-2.5 py-0.5 bg-teal-500 text-white text-xs font-bold rounded-full">Most Popular</span>
-                        )}
-                        <span className="ml-auto font-black text-teal-600 text-lg">{tier.price}</span>
-                      </div>
-                      <p className="text-slate-500 text-sm mb-3">{tier.description}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {tier.features.map((f) => (
-                          <span key={f} className="flex items-center gap-1 text-xs text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-full">
-                            <Check className="w-3 h-3 text-teal-500" />{f}
-                          </span>
-                        ))}
+            {tiersLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-7 h-7 text-teal-500 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {tiers.map((tier) => (
+                  <label
+                    key={tier.id}
+                    htmlFor={`tier-${tier.id}`}
+                    className={`block cursor-pointer rounded-2xl p-6 border-2 transition-all duration-200 ${form.tier === tier.id
+                        ? 'border-teal-500 bg-teal-50'
+                        : 'border-slate-200 bg-white hover:border-teal-300'
+                      }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <input
+                        type="radio"
+                        id={`tier-${tier.id}`}
+                        name="tier"
+                        value={tier.id}
+                        checked={form.tier === tier.id}
+                        onChange={() => update('tier', tier.id)}
+                        className="mt-1 accent-teal-500"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <h3 className="font-bold text-slate-800 text-lg">{tier.name}</h3>
+                          {tier.popular && (
+                            <span className="px-2.5 py-0.5 bg-teal-500 text-white text-xs font-bold rounded-full">Most Popular</span>
+                          )}
+                          <span className="ml-auto font-black text-teal-600 text-lg">{tier.price}</span>
+                        </div>
+                        <p className="text-slate-500 text-sm mb-3">{tier.description}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {tier.features.map((f) => (
+                            <span key={f} className="flex items-center gap-1 text-xs text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-full">
+                              <Check className="w-3 h-3 text-teal-500" />{f}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </label>
-              ))}
-            </div>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -435,7 +473,7 @@ export default function MembershipPage() {
                 { label: 'Title', value: form.title || '—' },
                 { label: 'Industry', value: form.industry || '—' },
                 { label: 'Experience', value: form.experience || '—' },
-                { label: 'Membership Tier', value: TIERS.find((t) => t.id === form.tier)?.name },
+                { label: 'Membership Tier', value: tiers.find((t) => t.id === form.tier)?.name },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-start justify-between py-3 border-b border-slate-100 last:border-0">
                   <span className="text-sm text-slate-400 font-medium">{label}</span>

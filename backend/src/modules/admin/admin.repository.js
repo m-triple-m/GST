@@ -12,9 +12,9 @@ const getDashboardStats = async () => {
 
   // Membership growth over the last 12 months (including current month)
   const [growth_data] = await db.execute(`
-    SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count 
+    SELECT DATE_FORMAT(joined_at, '%Y-%m') as month, COUNT(*) as count 
     FROM members 
-    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 11 MONTH)
+    WHERE joined_at >= DATE_SUB(NOW(), INTERVAL 11 MONTH)
     GROUP BY month 
     ORDER BY month ASC
   `);
@@ -37,8 +37,7 @@ const getAuditLog = async ({ limit, offset }) => {
      FROM audit_logs a
      LEFT JOIN users u ON u.id = a.user_id
      ORDER BY a.created_at DESC
-     LIMIT ? OFFSET ?`,
-    [Number(limit), Number(offset)]
+     LIMIT ${Number(limit)} OFFSET ${Number(offset)}`
   );
   return rows;
 };

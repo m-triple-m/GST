@@ -479,7 +479,7 @@ export default function EventDetailPage() {
                       ) : (
                         isAuthenticated ? (
                           <button
-                            onClick={() => { addToCart(event, attendeeType, 1); setAddedToCart(true); }}
+                            onClick={() => { addToCart(event, attendeeType, 1, globalSettings); setAddedToCart(true); }}
                             className="btn-teal w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white text-sm mb-3"
                           >
                             <ShoppingCart className="w-4 h-4" /> Add to Cart
