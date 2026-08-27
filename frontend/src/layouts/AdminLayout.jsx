@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Calendar, Settings,
-  Globe, Menu, X, LogOut, ShieldAlert, Mail
+  Globe, Menu, X, LogOut, UserCog
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const sidebarItems = [
+const BASE_SIDEBAR_ITEMS = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
-  { name: 'Members',   icon: Users,           path: '/admin/members' },
-  { name: 'Events',    icon: Calendar,        path: '/admin/events' },
-  { name: 'Settings',  icon: Settings,        path: '/admin/settings' },
+  { name: 'Members', icon: Users, path: '/admin/members' },
+  { name: 'Events', icon: Calendar, path: '/admin/events' },
+  { name: 'Admin Accounts', icon: UserCog, path: '/admin/accounts' },
+  { name: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 
 /**
@@ -22,6 +23,9 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  // All admins see the same sidebar items
+  const sidebarItems = BASE_SIDEBAR_ITEMS;
 
   const [profile, setProfile] = useState(null);
 
@@ -38,8 +42,8 @@ export default function AdminLayout() {
     return () => window.removeEventListener('profileUpdated', fetchProfile);
   }, []);
 
-  const displayName = profile?.first_name 
-    ? `${profile.first_name} ${profile.last_name || ''}`.trim() 
+  const displayName = profile?.first_name
+    ? `${profile.first_name} ${profile.last_name || ''}`.trim()
     : (user?.name || 'Admin');
   const displayInitial = displayName[0]?.toUpperCase() || 'A';
   const defaultAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=14b8a6`;
@@ -80,9 +84,11 @@ export default function AdminLayout() {
             ) : (
               <img src={defaultAvatar} alt="Default Avatar" className="w-9 h-9 rounded-xl object-cover" />
             )}
-            <div className="truncate">
-              <div className="text-white font-bold text-xs capitalize truncate w-32 group-hover:text-teal-400 transition-colors" title={displayName}>{displayName}</div>
-              <div className="text-[9px] font-bold text-teal-400 uppercase tracking-widest mt-0.5">Admin Role</div>
+            <div className={`flex items-center gap-3 ${!sidebarOpen && 'hidden'}`}>
+              <div>
+                <div className="text-white font-bold text-xs capitalize truncate w-32 group-hover:text-teal-400 transition-colors" title={displayName}>{displayName}</div>
+                <div className="text-[9px] font-bold text-teal-400 uppercase tracking-widest mt-0.5">Admin</div>
+              </div>
             </div>
           </Link>
         ) : (
@@ -102,11 +108,10 @@ export default function AdminLayout() {
               <Link
                 key={item.name}
                 to={item.path}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold tracking-wider transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold tracking-wider transition-all duration-200 group ${isActive
+                  ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                  }`}
               >
                 <item.icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-teal-400'}`} />
                 <span className={!sidebarOpen ? 'hidden' : 'block'}>{item.name.toUpperCase()}</span>

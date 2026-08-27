@@ -8,10 +8,10 @@ const ApiError = require('../utils/ApiError');
  * Role hierarchy:  member < executive < admin
  *
  * Usage:
- *   router.get('/admin/stats', verifyToken, requireRole('admin'), controller)
+ *   router.get('/admin/stats', verifyToken, requireRole('admin', 'super_admin'), controller)
  *   router.get('/exec/profile', verifyToken, requireRole('executive'), controller)
  *
- * @param {...string} roles - Allowed roles (e.g. 'admin', 'executive')
+ * @param {...string} roles - Allowed roles (e.g. 'admin', 'super_admin', 'executive')
  * @returns {import('express').RequestHandler}
  */
 const requireRole = (...roles) => (req, res, next) => {

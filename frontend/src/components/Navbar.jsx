@@ -24,8 +24,8 @@ const navLinks = [
       { label: 'Contact Us', href: '/contact' },
     ]
   },
-  { label: 'Resources', href: '/resources' },
-  { label: 'Donate', href: '/donate' },
+  // { label: 'Resources', href: '/resources' },
+  // { label: 'Donate', href: '/donate' },
 ];
 
 export default function Navbar() {
@@ -102,11 +102,10 @@ export default function Navbar() {
               >
                 <button
                   onClick={() => handleHashNav(link.href)}
-                  className={`flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                    isActive(link.href)
-                      ? 'text-teal-400 bg-teal-500/10'
-                      : 'text-slate-300 hover:text-white hover:bg-white/5'
-                  }`}
+                  className={`flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${isActive(link.href)
+                    ? 'text-teal-400 bg-teal-500/10'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    }`}
                 >
                   {link.label}
                   {link.children && (
@@ -202,11 +201,10 @@ export default function Navbar() {
                     handleHashNav(link.href);
                   }
                 }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 text-sm font-medium ${
-                  isActive(link.href)
-                    ? 'text-teal-400 bg-teal-500/10'
-                    : 'text-slate-300 hover:text-white hover:bg-white/5'
-                }`}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 text-sm font-medium ${isActive(link.href)
+                  ? 'text-teal-400 bg-teal-500/10'
+                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+                  }`}
               >
                 {link.label}
                 {link.children && (

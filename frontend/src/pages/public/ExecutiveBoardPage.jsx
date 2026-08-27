@@ -1,17 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  LayoutDashboard, Users, Shield, Archive, Bell, Settings, Loader2
-} from 'lucide-react';
+import { Users, ChevronRight, Loader2, Mail, Briefcase } from 'lucide-react';
 import api from '../../api';
-
-const sidebarItems = [
-  { name: 'DASHBOARD', icon: LayoutDashboard, path: '/dashboard' },
-  { name: 'EXECUTIVE BOARD', icon: Users, path: '/executive', active: true },
-  { name: 'MEMBER DIRECTORY', icon: Users, path: '/membership' },
-  { name: 'GOVERNANCE', icon: Shield, path: '#' },
-  { name: 'ARCHIVES', icon: Archive, path: '#' },
-];
 
 export default function ExecutiveBoardPage() {
   const [executives, setExecutives] = useState([]);
@@ -32,154 +22,173 @@ export default function ExecutiveBoardPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-white" style={{ fontFamily: 'Inter, sans-serif' }}>
-      
-      {/* ── Sidebar ───────────────────────────────────────────── */}
-      <aside className="w-64 border-r border-teal-500/20 flex flex-col fixed left-0 top-16 bottom-0 bg-slate-900/80 backdrop-blur-xl">
-        <div className="p-8 border-b border-teal-500/20">
-          <span className="text-xs font-bold tracking-[0.25em] text-teal-400 uppercase">Platform</span>
-          <div className="text-[10px] text-slate-500 mt-1 tracking-widest">V1.0.4</div>
+    <div className="min-h-screen bg-slate-50 pt-20">
+
+      {/* ── Page Hero ─────────────────────────────────────────── */}
+      <div className="bg-slate-900 py-14 relative overflow-hidden">
+        <div className="absolute inset-0 seismic-pattern opacity-20" />
+        <div className="absolute right-0 top-0 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-slate-400 mb-5">
+            <Link to="/" className="hover:text-teal-400 transition-colors">Home</Link>
+            <ChevronRight className="w-3.5 h-3.5" />
+            <span className="text-slate-300">Executive Board</span>
+          </div>
+
+          <p className="text-teal-400 text-sm font-semibold tracking-widest uppercase mb-3">Leadership</p>
+          <h1 className="text-4xl sm:text-5xl font-black text-white mb-4">Executive Board</h1>
+          <p className="text-slate-400 text-lg max-w-2xl">
+            Meet the dedicated professionals steering the strategic direction and governance of the
+            Geophysical Society of Tulsa.
+          </p>
         </div>
+      </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          {sidebarItems.map((item) => (
-            <Link
-              key={item.name}
-              to={item.path}
-              className={`w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-bold tracking-widest transition-all duration-200 rounded-lg ${
-                item.active
-                  ? 'bg-teal-500/15 text-teal-400 border border-teal-500/30'
-                  : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
-              }`}
-            >
-              <item.icon className="w-4 h-4" />
-              {item.name}
-            </Link>
-          ))}
-        </nav>
-      </aside>
+      {/* ── Content ───────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
 
-      {/* ── Main Content ──────────────────────────────────────── */}
-      <main className="flex-1 ml-64">
-
-        {/* Local sub-nav */}
-        <div className="px-12 py-5 border-b border-teal-500/20 flex items-center justify-between sticky top-16 bg-slate-950/90 backdrop-blur-xl z-10">
-          <div className="flex items-center gap-8">
-            {['NETWORK', 'EVENTS', 'RESOURCES'].map(item => (
-              <Link key={item} to="#" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-teal-400 transition-colors">{item}</Link>
-            ))}
-            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-widest border-b border-teal-500 pb-1">LEADERSHIP</span>
+        {loading ? (
+          <div className="py-24 flex justify-center">
+            <Loader2 className="w-10 h-10 text-teal-500 animate-spin" />
           </div>
-          <div className="flex items-center gap-5">
-            <button className="text-slate-500 hover:text-teal-400 transition-colors"><Bell className="w-4 h-4" /></button>
-            <button className="text-slate-500 hover:text-teal-400 transition-colors"><Settings className="w-4 h-4" /></button>
+        ) : executives.length === 0 ? (
+          <div className="py-24 text-center text-slate-500">
+            <Users className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+            <p className="font-semibold text-lg">No executive board members found.</p>
           </div>
-        </div>
+        ) : (
+          <>
+            <h2 className="text-2xl font-black text-slate-900 mb-8">
+              {new Date().getFullYear()} Executive Board
+            </h2>
 
-        <div className="p-12 max-w-5xl">
-
-          {/* Page heading */}
-          <div className="mb-16">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-teal-500/20" />
-              <span className="text-[10px] font-bold text-teal-500 tracking-[0.3em] uppercase">GST // Executive Board</span>
-              <div className="h-px flex-1 bg-teal-500/20" />
-            </div>
-            <h1 className="text-5xl font-black text-white mb-4 tracking-tight">
-              Executive <span className="gradient-text">Leadership</span>
-            </h1>
-            <p className="text-slate-400 text-lg max-w-2xl leading-relaxed">
-              Defining the strategic direction and governance protocols for the Geophysical Society of Tulsa network ecosystem.
-            </p>
-            <div className="h-px w-full bg-gradient-to-r from-teal-500/40 to-transparent mt-10" />
-          </div>
-
-          {/* Member Cards */}
-          <div className="space-y-8">
-            {loading ? (
-              <div className="py-20 flex justify-center">
-                <Loader2 className="w-10 h-10 text-teal-500 animate-spin" />
-              </div>
-            ) : (
-              executives.map((exec, idx) => {
+            {/* Member Cards */}
+            <div className="space-y-6">
+              {executives.map((exec, idx) => {
                 const fullName = `${exec.first_name} ${exec.last_name}`;
-                const role = exec.job_title || 'EXECUTIVE MEMBER';
-                const image = exec.profile_image || exec.avatar_url || exec.exec_photo_url || '/assets/avatar_placeholder.png'; // Placeholder
-                
+                const role = exec.job_title || 'Executive Member';
+                const image =
+                  exec.profile_image ||
+                  exec.avatar_url ||
+                  exec.exec_photo_url ||
+                  null;
+
                 return (
                   <div
                     key={exec.id}
-                    className="flex glass-card rounded-xl overflow-hidden group hover:border-teal-500/40 transition-all duration-300 animate-fade-in-up"
-                    style={{ animationDelay: `${idx * 0.1}s` }}
+                    className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-200 transition-all duration-200 overflow-hidden flex flex-col sm:flex-row group animate-fade-in-up"
+                    style={{ animationDelay: `${idx * 0.08}s` }}
                   >
-                    {/* Image */}
-                    <div className="w-72 flex-shrink-0 relative overflow-hidden bg-slate-800">
-                      <img
-                        src={image}
-                        alt={fullName}
-                        className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-slate-950/60" />
-                      {/* Teal corner accent */}
-                      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-500 to-teal-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    {/* Avatar / Photo */}
+                    <div className="w-full sm:w-56 flex-shrink-0 bg-gradient-to-br from-slate-100 to-slate-200 group-hover:from-teal-50 group-hover:to-teal-100 transition-all duration-300 flex items-center justify-center relative overflow-hidden min-h-[180px] sm:min-h-0">
+                      {image ? (
+                        <img
+                          src={image}
+                          alt={fullName}
+                          className="w-full h-full object-cover absolute inset-0"
+                        />
+                      ) : (
+                        <Users className="w-16 h-16 text-slate-400 group-hover:text-teal-500 transition-colors duration-300" />
+                      )}
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 p-10 flex flex-col justify-center">
-                      <span className="text-[10px] font-bold text-teal-500 uppercase tracking-[0.25em] mb-3">{role}</span>
-                      <h2 className="text-3xl font-black text-white mb-5 tracking-tight uppercase">{fullName}</h2>
-                      {exec.company && (
-                        <p className="text-slate-400 font-medium mb-5">{exec.company}</p>
-                      )}
-                      <p className="text-slate-400 text-sm leading-relaxed mb-8 line-clamp-3 max-w-xl">
-                        {exec.bio || `${fullName} serves on the Executive Board of the Geophysical Society of Tulsa, helping to guide the strategic vision and operations of the organization.`}
+                    <div className="flex-1 p-8 flex flex-col justify-center">
+                      <p className="text-xs font-bold text-teal-600 tracking-widest uppercase mb-2">
+                        {role}
                       </p>
-                      <div className="flex gap-4">
+                      <h2 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">
+                        {fullName}
+                      </h2>
+
+                      {exec.company && (
+                        <div className="flex items-center gap-2 text-slate-500 text-sm mb-3">
+                          <Briefcase className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>{exec.company}</span>
+                        </div>
+                      )}
+
+                      <p className="text-slate-500 text-sm leading-relaxed mb-6 max-w-2xl line-clamp-3">
+                        {exec.bio ||
+                          `${fullName} serves on the Executive Board of the Geophysical Society of Tulsa, helping to guide the strategic vision and operations of the organization.`}
+                      </p>
+
+                      <div className="flex flex-wrap gap-3">
                         <Link
                           to={`/executive/${exec.id}`}
-                          className="btn-teal px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-white rounded-lg"
+                          className="btn-teal px-6 py-2.5 rounded-xl font-bold text-white text-sm"
                         >
-                          <span>View Portfolio</span>
+                          <span>View Profile</span>
                         </Link>
-                        <button className="btn-outline-teal px-6 py-3 text-[10px] font-bold uppercase tracking-widest rounded-lg">
-                          Connect
-                        </button>
+                        {exec.email && (
+                          <a
+                            href={`mailto:${exec.email}`}
+                            className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm border border-slate-200 text-slate-600 hover:border-teal-300 hover:text-teal-600 transition-all duration-200"
+                          >
+                            <Mail className="w-4 h-4" />
+                            Contact
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
+          </>
+        )}
 
-            {/* Recruitment Pending Card */}
-            <div className="flex rounded-xl overflow-hidden border border-dashed border-slate-700 opacity-50 mt-8">
-              <div className="w-72 flex-shrink-0 bg-slate-800/50 flex items-center justify-center py-20">
-                <span className="text-[10px] font-bold tracking-widest text-slate-600 uppercase">Image</span>
-              </div>
-              <div className="flex-1 p-10 flex flex-col justify-center">
-                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.25em] mb-3">Position Pending</span>
-                <h2 className="text-3xl font-black text-slate-600 mb-5 tracking-tight">RECRUITMENT IN PROGRESS</h2>
-                <p className="text-slate-600 text-sm leading-relaxed mb-8 max-w-xl">
-                  This position is currently undergoing strategic review. The Executive Board is seeking a candidate with a background in structural governance and geophysical policy implementation.
-                </p>
-                <button disabled className="w-fit px-6 py-3 border border-slate-700 text-[10px] font-bold uppercase tracking-widest text-slate-600 rounded-lg cursor-not-allowed">
-                  Apply Now
-                </button>
+        {/* ── Recruitment Pending Card ─────────────────────────── */}
+        {!loading && (
+          <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white/60 overflow-hidden flex flex-col sm:flex-row opacity-60">
+            <div className="w-full sm:w-56 flex-shrink-0 bg-slate-100 flex items-center justify-center py-16">
+              <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Photo</span>
+            </div>
+            <div className="flex-1 p-8 flex flex-col justify-center">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                Position Pending
+              </p>
+              <h3 className="text-xl font-black text-slate-400 mb-3">Recruitment in Progress</h3>
+              <p className="text-slate-400 text-sm leading-relaxed mb-6 max-w-xl">
+                This position is currently undergoing strategic review. The Executive Board is seeking a
+                candidate with a background in structural governance and geophysical policy implementation.
+              </p>
+              <button
+                disabled
+                className="w-fit px-6 py-2.5 border border-slate-300 text-xs font-bold uppercase tracking-widest text-slate-400 rounded-xl cursor-not-allowed"
+              >
+                Apply Now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Interested in Serving CTA ─────────────────────────── */}
+        {!loading && (
+          <div className="mt-14 bg-slate-900 rounded-2xl p-10 text-center relative overflow-hidden">
+            <div className="absolute inset-0 seismic-pattern opacity-20" />
+            <div className="relative">
+              <h3 className="text-2xl font-black text-white mb-3">Interested in Serving?</h3>
+              <p className="text-slate-400 max-w-lg mx-auto mb-7">
+                GST board positions are open to all professional members. Elections are held annually
+                at our spring meeting. Join as a member to become eligible.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Link to="/membership" className="btn-teal px-7 py-3.5 rounded-xl font-bold text-white text-sm">
+                  <span>Join GST</span>
+                </Link>
+                <Link
+                  to="/#contact"
+                  className="px-7 py-3.5 rounded-xl font-bold text-white text-sm border border-white/20 hover:bg-white/5 transition-all duration-200"
+                >
+                  Contact Us
+                </Link>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Footer */}
-        <footer className="px-12 py-10 border-t border-teal-500/20 flex flex-col md:flex-row items-center justify-between gap-6 mt-20">
-          <p className="text-[10px] font-bold text-slate-600 tracking-widest uppercase">© 2024 Geophysical Society of Tulsa</p>
-          <div className="flex items-center gap-8">
-            {['Privacy Policy', 'Terms of Service', 'Contact', 'Bylaws'].map((item) => (
-              <Link key={item} to="#" className="text-[10px] font-bold text-slate-600 hover:text-teal-400 transition-colors uppercase tracking-widest">{item}</Link>
-            ))}
-          </div>
-        </footer>
-      </main>
+        )}
+      </div>
     </div>
   );
 }

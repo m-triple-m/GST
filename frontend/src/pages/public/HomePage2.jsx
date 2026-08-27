@@ -30,9 +30,7 @@ export default function HomePage() {
   return (
     <main>
       {showIntro && <IntroOverlay onDone={handleIntroDone} />}
-
       <Hero />
-
       <Reveal>
         <Membership />
       </Reveal>

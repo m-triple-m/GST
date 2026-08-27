@@ -54,4 +54,24 @@ const writeAuditLog = async (userId, action, target, meta) => {
   );
 };
 
-module.exports = { getDashboardStats, getAuditLog, countAuditLog, writeAuditLog };
+const listAdminAccounts = async () => {
+  const [rows] = await db.execute(
+    `SELECT u.id, u.email, u.role, u.is_active, u.created_at,
+            m.first_name, m.last_name
+     FROM users u
+     LEFT JOIN members m ON m.user_id = u.id
+     WHERE u.role = 'admin'
+     ORDER BY u.created_at DESC`
+  );
+  return rows;
+};
+
+const createAdminAccount = async (email, passwordHash, role = 'admin') => {
+  const [result] = await db.execute(
+    'INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)',
+    [email, passwordHash, role]
+  );
+  return result.insertId;
+};
+
+module.exports = { getDashboardStats, getAuditLog, countAuditLog, writeAuditLog, listAdminAccounts, createAdminAccount };

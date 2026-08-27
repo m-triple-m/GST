@@ -44,6 +44,7 @@ import AdminMembers from './pages/admin/AdminMembers';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminContactInquiries from './pages/admin/AdminContactInquiries';
+import AdminAccounts from './pages/admin/AdminAccounts';
 
 export default function App() {
   return (
@@ -111,6 +112,7 @@ export default function App() {
                 <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/admin/profile" element={<SettingsPage />} />
                 <Route path="/admin/contact-inquiries" element={<AdminContactInquiries />} />
+                <Route path="/admin/accounts" element={<AdminAccounts />} />
               </Route>
             </Route>
 

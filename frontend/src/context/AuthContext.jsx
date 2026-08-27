@@ -4,7 +4,7 @@ import api from '../api';
 /**
  * AuthContext — global authentication state
  *
- * Roles: 'guest' | 'member' | 'admin'
+ * Roles: 'member' | 'executive' | 'admin'
  */
 const AuthContext = createContext(null);
 

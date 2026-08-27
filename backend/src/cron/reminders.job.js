@@ -14,7 +14,7 @@ const sendEventReminders = async () => {
         AND event_date <= DATE_ADD(NOW(), INTERVAL 24 HOUR)
     `;
     const [events] = await db.query(queryEvents);
-    
+
     if (events.length === 0) {
       console.log('[Cron] No events starting within 24 hours.');
       return;
@@ -32,14 +32,14 @@ const sendEventReminders = async () => {
       if (registrations.length === 0) continue;
 
       console.log(`[Cron] Sending reminders for event: ${event.title} (${registrations.length} attendees)`);
-      
+
       for (const reg of registrations) {
         if (!reg.attendee_email) continue;
 
         try {
           // Send reminder email
           await mailerService.sendEventReminderEmail(reg.attendee_email, event);
-          
+
           // Mark reminder as sent
           await db.query(`UPDATE event_registrations SET reminder_sent = 1 WHERE id = ?`, [reg.id]);
         } catch (emailErr) {
