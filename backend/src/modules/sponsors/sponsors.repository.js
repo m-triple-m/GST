@@ -1,6 +1,8 @@
 'use strict';
 const db = require('../../config/db');
 
+// ── Sponsor Enquiries ─────────────────────────────────────────────────────────
+
 const saveEnquiry = async (data) => {
   const { company_name, contact_name, email, phone, tier_interest, message } = data;
   const [r] = await db.execute(
@@ -27,4 +29,49 @@ const updateEnquiryStatus = async (id, status) => {
   await db.execute('UPDATE sponsor_enquiries SET status = ? WHERE id = ?', [status, id]);
 };
 
-module.exports = { saveEnquiry, listEnquiries, countEnquiries, updateEnquiryStatus };
+// ── Sponsors (site sponsors managed by admin) ─────────────────────────────────
+
+const listSponsors = async ({ activeOnly = false } = {}) => {
+  const where = activeOnly ? 'WHERE is_active = 1' : '';
+  const [rows] = await db.execute(
+    `SELECT * FROM sponsors ${where} ORDER BY sort_order ASC, tier ASC, created_at ASC`
+  );
+  return rows;
+};
+
+const getSponsorById = async (id) => {
+  const [rows] = await db.execute('SELECT * FROM sponsors WHERE id = ? LIMIT 1', [id]);
+  return rows[0] || null;
+};
+
+const createSponsor = async ({ name, logo_url, website_url, tier, is_active, sort_order }) => {
+  const [r] = await db.execute(
+    'INSERT INTO sponsors (name, logo_url, website_url, tier, is_active, sort_order) VALUES (?,?,?,?,?,?)',
+    [name, logo_url, website_url || null, tier || 'bronze', is_active ?? 1, sort_order ?? 0]
+  );
+  return r.insertId;
+};
+
+const updateSponsor = async (id, fields) => {
+  const allowed = ['name', 'logo_url', 'website_url', 'tier', 'is_active', 'sort_order'];
+  const sets    = [];
+  const vals    = [];
+  for (const key of allowed) {
+    if (fields[key] !== undefined) {
+      sets.push(`${key} = ?`);
+      vals.push(fields[key]);
+    }
+  }
+  if (!sets.length) return;
+  vals.push(id);
+  await db.execute(`UPDATE sponsors SET ${sets.join(', ')} WHERE id = ?`, vals);
+};
+
+const deleteSponsor = async (id) => {
+  await db.execute('DELETE FROM sponsors WHERE id = ?', [id]);
+};
+
+module.exports = {
+  saveEnquiry, listEnquiries, countEnquiries, updateEnquiryStatus,
+  listSponsors, getSponsorById, createSponsor, updateSponsor, deleteSponsor,
+};

@@ -3,6 +3,8 @@ const { validationResult } = require('express-validator');
 const service    = require('./sponsors.service');
 const { sendSuccess } = require('../../utils/response');
 
+// ── Enquiries ─────────────────────────────────────────────────────────────────
+
 const submitEnquiry = async (req, res, next) => {
   try {
     const errors = validationResult(req);
@@ -19,4 +21,54 @@ const listEnquiries = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { submitEnquiry, listEnquiries };
+// ── Sponsors CRUD ─────────────────────────────────────────────────────────────
+
+/** Public — only active sponsors */
+const listSponsors = async (req, res, next) => {
+  try {
+    const sponsors = await service.listSponsors(true);
+    sendSuccess(res, 200, 'Sponsors', sponsors);
+  } catch (err) { next(err); }
+};
+
+/** Admin — all sponsors including inactive */
+const listAllSponsors = async (req, res, next) => {
+  try {
+    const sponsors = await service.listSponsors(false);
+    sendSuccess(res, 200, 'All sponsors', sponsors);
+  } catch (err) { next(err); }
+};
+
+const createSponsor = async (req, res, next) => {
+  try {
+    const sponsor = await service.createSponsor(req.body);
+    sendSuccess(res, 201, 'Sponsor created', sponsor);
+  } catch (err) { next(err); }
+};
+
+const updateSponsor = async (req, res, next) => {
+  try {
+    const sponsor = await service.updateSponsor(Number(req.params.id), req.body);
+    sendSuccess(res, 200, 'Sponsor updated', sponsor);
+  } catch (err) { next(err); }
+};
+
+const deleteSponsor = async (req, res, next) => {
+  try {
+    await service.deleteSponsor(Number(req.params.id));
+    sendSuccess(res, 200, 'Sponsor deleted');
+  } catch (err) { next(err); }
+};
+
+const uploadLogo = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return next(require('../../utils/ApiError').badRequest('No image file provided'));
+    }
+    // Build the public URL — served via express.static from /public
+    const logo_url = `/uploads/sponsors/${req.file.filename}`;
+    sendSuccess(res, 200, 'Logo uploaded', { logo_url });
+  } catch (err) { next(err); }
+};
+
+module.exports = { submitEnquiry, listEnquiries, listSponsors, listAllSponsors, createSponsor, updateSponsor, deleteSponsor, uploadLogo };

@@ -4,11 +4,12 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure upload directories exist
-const uploadDirAvatars = path.join(__dirname, '../../public/uploads/avatars');
-const uploadDirEventsImages = path.join(__dirname, '../../public/uploads/events/images');
-const uploadDirEventsResources = path.join(__dirname, '../../public/uploads/events/resources');
+const uploadDirAvatars          = path.join(__dirname, '../../public/uploads/avatars');
+const uploadDirEventsImages     = path.join(__dirname, '../../public/uploads/events/images');
+const uploadDirEventsResources  = path.join(__dirname, '../../public/uploads/events/resources');
+const uploadDirSponsorLogos     = path.join(__dirname, '../../public/uploads/sponsors');
 
-[uploadDirAvatars, uploadDirEventsImages, uploadDirEventsResources].forEach(dir => {
+[uploadDirAvatars, uploadDirEventsImages, uploadDirEventsResources, uploadDirSponsorLogos].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -67,8 +68,15 @@ const uploadEventResource = multer({
   fileFilter: resourceFilter
 });
 
+const uploadSponsorLogo = multer({
+  storage: createStorage(uploadDirSponsorLogos, 'sponsor-logo'),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: imageFilter
+});
+
 module.exports = {
   uploadAvatar,
   uploadEventImage,
-  uploadEventResource
+  uploadEventResource,
+  uploadSponsorLogo,
 };
