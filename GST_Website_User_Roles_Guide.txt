@@ -1,0 +1,156 @@
+================================================================
+  GEOPHYSICAL SOCIETY OF TULSA (GST) — WEBSITE USER ROLES GUIDE
+  A simple guide to understanding who can do what on the website
+================================================================
+
+
+----------------------------------------------------------------
+  OVERVIEW
+----------------------------------------------------------------
+
+The GST website has three types of logged-in users, each with
+a different level of access depending on their role within the
+organization.
+
+  1. Member
+  2. Executive Member
+  3. Admin
+
+
+================================================================
+  ROLE 1 — MEMBER
+  (Regular registered members of the society)
+================================================================
+
+What a Member CAN do:
+  - Log in and access their personal dashboard
+  - View upcoming and past events
+  - Register for events and pay online
+  - View resources published by the society
+  - Update their own profile and settings
+  - View the executive board and member profiles
+
+What a Member CANNOT do:
+  - Create or edit any events
+  - View other members' information
+  - Access any admin or management tools
+  - Contact inquiry inbox
+
+
+================================================================
+  ROLE 2 — EXECUTIVE MEMBER
+  (Board members or appointed officers of the society)
+================================================================
+
+Everything a regular Member can do, PLUS:
+
+  - Create new events for the society
+  - Edit or update existing events
+  - View the full member list
+  - View and manage contact inquiries submitted through
+    the website's contact form
+
+What an Executive Member CANNOT do:
+  - Access the Admin Panel
+  - Change site-wide settings
+  - Create or manage other admin accounts
+  - View the audit log or system statistics
+
+  NOTE: Executive Members manage content through the same
+  dashboard that regular members use — they just see extra
+  options that regular members do not.
+
+
+================================================================
+  ROLE 3 — ADMIN
+  (Website administrators — highest level of access)
+================================================================
+
+Everything an Executive Member can do, PLUS access to a
+dedicated Admin Panel which includes:
+
+  - Full overview dashboard with site statistics
+      (total members, revenue, active events, pending
+       applications, unread inquiries, etc.)
+
+  - Member Management
+      View, approve, or update all member accounts and
+      applications
+
+  - Event Management
+      Full control over all events — create, edit, publish,
+      or archive any event on the site
+
+  - Contact Inquiries
+      View and manage all messages sent through the
+      contact form
+
+  - Site Settings
+      Configure site-wide settings
+
+  - Admin Accounts
+      Create new admin accounts for other people
+      (requires entering your own password first as a
+       security confirmation step)
+
+  - Audit Log
+      See a history of important actions taken on the site
+      (who did what and when)
+
+  NOTE: The Admin Panel is a completely separate area of
+  the website, only accessible to admins. Regular members
+  and executive members cannot see or reach it.
+
+
+================================================================
+  QUICK COMPARISON CHART
+================================================================
+
+  FEATURE                          MEMBER   EXECUTIVE   ADMIN
+  ---------------------------------------------------------------
+  Personal dashboard & profile       YES       YES        YES
+  View events & resources            YES       YES        YES
+  Register for events / pay          YES       YES        YES
+  ---------------------------------------------------------------
+  Create & edit events               NO        YES        YES
+  View full member list              NO        YES        YES
+  View contact inquiries             NO        YES        YES
+  ---------------------------------------------------------------
+  Admin Panel (separate area)        NO        NO         YES
+  Site statistics & audit log        NO        NO         YES
+  Manage member applications         NO        NO         YES
+  Site settings                      NO        NO         YES
+  Create other admin accounts        NO        NO         YES
+  ---------------------------------------------------------------
+
+
+================================================================
+  SECURITY NOTE — ADDING A NEW ADMIN
+================================================================
+
+When an Admin wants to create a new admin account, the website
+requires them to re-enter their own password first.
+
+This is an intentional security step to prevent someone from
+accidentally — or maliciously — creating admin accounts without
+proper authorization.
+
+
+================================================================
+  SUMMARY IN ONE SENTENCE EACH
+================================================================
+
+  Member          — Can browse, register, and manage
+                    their own profile. Nothing more.
+
+  Executive       — Can do everything a member does, and
+                    also manage events and view member data.
+
+  Admin           — Has full control over the entire website,
+                    its content, its members, and its settings.
+
+
+================================================================
+  END OF DOCUMENT
+  Geophysical Society of Tulsa — Internal Reference
+================================================================
