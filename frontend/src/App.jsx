@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import './index.css';
 
 // Auth
@@ -42,15 +43,61 @@ import SettingsPage from './pages/member/SettingsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminMembers from './pages/admin/AdminMembers';
 import AdminEvents from './pages/admin/AdminEvents';
+import AdminEventDetailsPage from './pages/admin/AdminEventDetailsPage';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminContactInquiries from './pages/admin/AdminContactInquiries';
 import AdminAccounts from './pages/admin/AdminAccounts';
+import AdminSponsors from './pages/admin/AdminSponsors';
 
 export default function App() {
   return (
     <AuthProvider>
       <CartProvider>
         <BrowserRouter>
+
+          {/* ── Global Toast Notifications ── */}
+          <Toaster
+            position="top-right"
+            gutter={10}
+            toastOptions={{
+              style: {
+                fontFamily: "'Inter', system-ui, sans-serif",
+                fontSize:   '13px',
+                fontWeight: '600',
+                borderRadius: '14px',
+                padding: '13px 16px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)',
+                maxWidth: '380px',
+              },
+              success: {
+                style: {
+                  background: '#f0fafa',
+                  color:      '#006666',
+                  border:     '1.5px solid #00a0a0',
+                },
+                iconTheme: { primary: '#008080', secondary: '#f0fafa' },
+                duration: 4000,
+              },
+              error: {
+                style: {
+                  background: '#fff5f5',
+                  color:      '#c53030',
+                  border:     '1.5px solid #feb2b2',
+                },
+                iconTheme: { primary: '#e53e3e', secondary: '#fff5f5' },
+                duration: 5000,
+              },
+              loading: {
+                style: {
+                  background: '#f8fafc',
+                  color:      '#334155',
+                  border:     '1.5px solid #e2e8f0',
+                },
+                iconTheme: { primary: '#008080', secondary: '#f8fafc' },
+              },
+            }}
+          />
+
           <Routes>
 
             {/* ── PUBLIC — wrapped in Navbar/Footer ── */}
@@ -58,6 +105,9 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/events" element={<EventsPage />} />
               <Route path="/events/:id" element={<EventDetailPage />} />
+              <Route path="/events/:id/register" element={<RegisterEventPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/membership" element={<MembershipPage />} />
               <Route path="/executive" element={<ExecutiveBoardPage />} />
               <Route path="/executive/:id" element={<ExecutiveProfilePage />} />
@@ -92,13 +142,6 @@ export default function App() {
                   <Route path="/dashboard/contact-inquiries" element={<AdminContactInquiries />} />
                 </Route>
               </Route>
-
-              {/* Pages that reuse the public Navbar/Footer — all members */}
-              <Route element={<PageLayout />}>
-                <Route path="/events/:id/register" element={<RegisterEventPage />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/checkout" element={<CheckoutPage />} />
-              </Route>
             </Route>
 
             {/* ── ADMIN — admin role required ── */}
@@ -108,10 +151,12 @@ export default function App() {
                 <Route path="/admin/members" element={<AdminMembers />} />
                 <Route path="/admin/events" element={<AdminEvents />} />
                 <Route path="/admin/events/new" element={<ScheduleEventPage />} />
+                <Route path="/admin/events/:id" element={<AdminEventDetailsPage />} />
                 <Route path="/admin/events/:id/edit" element={<ScheduleEventPage />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/admin/profile" element={<SettingsPage />} />
                 <Route path="/admin/contact-inquiries" element={<AdminContactInquiries />} />
+                <Route path="/admin/sponsors" element={<AdminSponsors />} />
                 <Route path="/admin/accounts" element={<AdminAccounts />} />
               </Route>
             </Route>

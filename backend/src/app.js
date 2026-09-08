@@ -24,6 +24,7 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
+console.log(config.frontendUrl);
 
 // ── CORS ─────────────────────────────────────────────────
 app.use(cors({

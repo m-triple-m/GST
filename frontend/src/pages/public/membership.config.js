@@ -25,26 +25,54 @@ export const TIERS = [
   {
     id: 'corporate',
     name: 'Corporate',
-    price: 'Custom',
+    price: '$150/yr',
     description: 'For companies & organizations',
     features: ['Multiple employees', 'Event sponsorship', 'Logo placement', 'Priority recognition'],
   },
 ];
 
+/** SEG Membership Status options */
+export const SEG_STATUS_OPTIONS = [
+  { id: 'active', label: 'Active Member' },
+  { id: 'associate', label: 'Associate Member' },
+  { id: 'emeritus', label: 'Emeritus Member' },
+  { id: 'student', label: 'Student Member' },
+  { id: 'non-member', label: 'Non-Member' },
+];
+
 /** Default form field values */
 export const INITIAL_FORM = {
+  // Personal & Contact
   firstName: '',
   lastName: '',
+  nickname: '',
   email: '',
   phone: '',
-  linkedin: '',
-  company: '',
-  title: '',
-  experience: '',
-  industry: '',
+  homeStreet: '',
+  homeCity: '',
+  homeState: '',
+  homeZip: '',
+  privacyPolicy: false,
+
+  // Company & Work Details
+  companyName: '',
+  companyStreet: '',
+  companyCity: '',
+  companyState: '',
+  companyZip: '',
+  companyPhone: '',
+  boardPosition: '',
+  jobTitle: '',
+
+  // Society Affiliations & Education
+  segStatus: 'non-member',
+  tgsMember: false,
+  education: [
+    { university: '', degree: '', major: '' },
+  ],
+
+  // Membership Tier & Meta
   tier: 'professional',
-  motivation: '',
-  referral: false,
 };
 
 /** Validation regex patterns */

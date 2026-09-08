@@ -3,8 +3,8 @@
 --  Geophysical Society of Tulsa
 -- ═══════════════════════════════════════════════
 
-CREATE DATABASE IF NOT EXISTS gst_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE gst_db;
+CREATE DATABASE IF NOT EXISTS digipsnw_gst_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE digipsnw_gst_db;
 
 -- ─────────────────────────────────────────
 --  USERS
@@ -28,10 +28,30 @@ CREATE TABLE IF NOT EXISTS members (
   email           VARCHAR(255) NOT NULL UNIQUE,     -- owns the email directly; no JOIN to users needed
   first_name      VARCHAR(100) NOT NULL,
   last_name       VARCHAR(100) NOT NULL,
+  nickname        VARCHAR(100),
   phone           VARCHAR(30),
+  home_street     VARCHAR(255),
+  home_city       VARCHAR(100),
+  home_state      VARCHAR(100),
+  home_zip        VARCHAR(30),
+  avatar_url      VARCHAR(500),
+  privacy_policy  TINYINT(1) DEFAULT 0,
   linkedin_url    VARCHAR(500),
   company         VARCHAR(255),
+  company_name    VARCHAR(255),
+  company_street  VARCHAR(255),
+  company_city    VARCHAR(100),
+  company_state   VARCHAR(100),
+  company_zip     VARCHAR(30),
+  company_phone   VARCHAR(30),
+  board_position  VARCHAR(150),
   job_title       VARCHAR(255),
+  seg_status      ENUM('active','associate','emeritus','student','non-member') DEFAULT 'non-member',
+  university      VARCHAR(255),
+  degree          VARCHAR(100),
+  major           VARCHAR(150),
+  education       JSON,
+  tgs_member      TINYINT(1) DEFAULT 0,
   experience      VARCHAR(50),
   industry        VARCHAR(100),
   motivation      TEXT,
@@ -48,7 +68,8 @@ CREATE TABLE IF NOT EXISTS members (
   INDEX idx_status (status),
   INDEX idx_tier (tier),
   INDEX idx_is_executive (is_executive),
-  INDEX idx_email (email)
+  INDEX idx_email (email),
+  INDEX idx_seg_status (seg_status)
 );
 
 
@@ -211,6 +232,24 @@ CREATE TABLE IF NOT EXISTS sponsor_enquiries (
   status        ENUM('new','in_review','approved','declined') DEFAULT 'new',
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_status (status)
+);
+
+-- ─────────────────────────────────────────
+--  SPONSORS  (active sponsors on the site)
+-- ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sponsors (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(255)  NOT NULL,
+  logo_url    VARCHAR(1000) NOT NULL,
+  website_url VARCHAR(1000),
+  tier        ENUM('bronze','silver','gold','platinum') NOT NULL DEFAULT 'bronze',
+  is_active   TINYINT(1)    NOT NULL DEFAULT 1,
+  sort_order  INT UNSIGNED  NOT NULL DEFAULT 0,
+  created_at  DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_tier      (tier),
+  INDEX idx_is_active (is_active),
+  INDEX idx_sort      (sort_order)
 );
 
 -- ─────────────────────────────────────────

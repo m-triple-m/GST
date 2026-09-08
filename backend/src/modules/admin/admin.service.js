@@ -38,11 +38,6 @@ const createAdminAccount = async ({ email, password, role = 'admin' }) => {
   return { id: newId, email, role };
 };
 
-/**
- * verifyOwnPassword — password-wall check.
- * Used by the frontend before showing the "Add Admin" form.
- * Compares the submitted plain-text password against the caller's stored hash.
- */
 const verifyOwnPassword = async (userId, password) => {
   const authRepo = require('../auth/auth.repository');
   const user = await authRepo.findUserByIdWithHash(userId);
@@ -52,4 +47,13 @@ const verifyOwnPassword = async (userId, password) => {
   return true;
 };
 
-module.exports = { getStats, getAuditLog, listAdminAccounts, createAdminAccount, verifyOwnPassword };
+const getRevenueAnalytics = (query) => repo.getRevenueAnalytics(query);
+
+module.exports = {
+  getStats,
+  getAuditLog,
+  listAdminAccounts,
+  createAdminAccount,
+  verifyOwnPassword,
+  getRevenueAnalytics,
+};

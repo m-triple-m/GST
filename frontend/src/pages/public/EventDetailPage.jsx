@@ -137,17 +137,33 @@ export default function EventDetailPage() {
     }
   };
 
+  const formatEventTime = (timeStr) => {
+    if (!timeStr) return null;
+    const parts = String(timeStr).split(':');
+    if (parts.length < 2) return timeStr;
+    const h = parseInt(parts[0], 10);
+    const m = parts[1];
+    if (isNaN(h)) return timeStr;
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour = ((h % 12) || 12);
+    return `${hour}:${m} ${period}`;
+  };
+
   const formattedDate = event.event_date ? new Date(event.event_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'TBD';
-  const formattedTime = event.start_time ? `${event.start_time} ${event.end_time ? `– ${event.end_time}` : ''}` : 'TBD';
-  const locName = event.location_name || (event.location_type === 'online' ? 'Online' : event.location_type === 'hybrid' ? 'Hybrid (In Person & Online)' : 'In Person');
+  const startTimeFormatted = formatEventTime(event.start_time);
+  const endTimeFormatted = formatEventTime(event.end_time);
+  const formattedTime = startTimeFormatted
+    ? `${startTimeFormatted}${endTimeFormatted ? ` – ${endTimeFormatted}` : ''}`
+    : 'TBD';
+  const locName = event.location_name || (event.location_type === 'online' ? 'Online' : (event.location_address || (event.location_type === 'hybrid' ? 'Hybrid (In Person & Online)' : 'In Person')));
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20">
+    <div className="min-h-screen bg-slate-50">
       {/* Hero banner */}
-      <div className="bg-slate-900 relative overflow-hidden">
+      <div className="bg-slate-900 pt-28 pb-14 relative overflow-hidden">
         <div className="absolute inset-0 seismic-pattern opacity-20" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
             <Link to="/" className="hover:text-teal-400 transition-colors">Home</Link>
@@ -477,21 +493,31 @@ export default function EventDetailPage() {
                           </Link>
                         </>
                       ) : (
-                        isAuthenticated ? (
+                        <div className="space-y-2 mb-3">
+                          <Link
+                            to={`/events/${id}/register`}
+                            className="btn-teal w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white text-sm shadow-md shadow-teal-500/20"
+                          >
+                            <ChevronRight className="w-4 h-4" /> {isAuthenticated ? 'Register Now' : 'Register as Guest'}
+                          </Link>
+                          
                           <button
                             onClick={() => { addToCart(event, attendeeType, 1, globalSettings); setAddedToCart(true); }}
-                            className="btn-teal w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white text-sm mb-3"
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 text-xs transition-all"
                           >
-                            <ShoppingCart className="w-4 h-4" /> Add to Cart
+                            <ShoppingCart className="w-3.5 h-3.5" /> Add to Cart
                           </button>
-                        ) : (
-                          <Link
-                            to="/login"
-                            className="btn-teal w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white text-sm mb-3"
-                          >
-                            Login to Register
-                          </Link>
-                        )
+
+                          {!isAuthenticated && (
+                            <p className="text-center text-[11px] text-slate-400 mt-2">
+                              Already a member?{' '}
+                              <Link to="/login" className="text-teal-600 font-bold hover:underline">
+                                Sign in
+                              </Link>{' '}
+                              for member rates.
+                            </p>
+                          )}
+                        </div>
                       )}
                     </>
                   )}

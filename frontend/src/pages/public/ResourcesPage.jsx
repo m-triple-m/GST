@@ -116,9 +116,9 @@ export default function ResourcesPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-slate-900 py-14 relative overflow-hidden">
+      <div className="bg-slate-900 pt-28 pb-14 relative overflow-hidden">
         <div className="absolute inset-0 seismic-pattern opacity-20" />
         <div className="absolute right-0 top-0 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

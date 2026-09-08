@@ -5,23 +5,27 @@ const db = require('../../config/db');
 
 const getExecutiveBoard = async () => {
   const [rows] = await db.execute(
-    `SELECT m.id, m.first_name, m.last_name, m.exec_position,
+    `SELECT m.id, m.first_name, m.last_name, m.nickname, m.board_position, m.exec_position,
             m.exec_bio, m.exec_photo_url, m.avatar_url,
             COALESCE(m.exec_photo_url, m.avatar_url) AS profile_image,
-            m.company, m.job_title, m.joined_at
+            COALESCE(m.company_name, m.company) AS company, m.company_name, m.job_title,
+            m.seg_status, m.tgs_member, m.education, m.university, m.degree, m.major, m.joined_at
      FROM members m
      WHERE m.is_executive = 1 AND m.status = 'active'
-     ORDER BY m.exec_position`
+     ORDER BY COALESCE(m.board_position, m.exec_position, m.first_name)`
   );
   return rows;
 };
 
 const getExecutiveById = async (id) => {
   const [rows] = await db.execute(
-    `SELECT m.id, m.first_name, m.last_name, m.exec_position,
+    `SELECT m.id, m.first_name, m.last_name, m.nickname, m.board_position, m.exec_position,
             m.exec_bio, m.exec_photo_url, m.avatar_url,
             COALESCE(m.exec_photo_url, m.avatar_url) AS profile_image,
-            m.company, m.job_title, m.email, m.joined_at
+            COALESCE(m.company_name, m.company) AS company, m.company_name, m.job_title,
+            m.seg_status, m.tgs_member, m.education, m.university, m.degree, m.major,
+            m.email, m.phone, m.company_phone, m.company_city, m.company_state,
+            m.linkedin_url, m.industry, m.experience, m.tier, m.joined_at
      FROM members m
      WHERE m.id = ? AND m.is_executive = 1 AND m.status = 'active'`,
     [id]
@@ -50,41 +54,47 @@ const getMemberByEmail = async (email) => {
 
 // ── Admin ─────────────────────────────────────────────────
 
-const countMembers = async ({ search, status, tier }) => {
+const countMembers = async ({ search, status, tier, seg_status }) => {
   let sql    = 'SELECT COUNT(*) as total FROM members m WHERE 1=1';
   const params = [];
 
   if (search) {
-    sql += ' AND (m.first_name LIKE ? OR m.last_name LIKE ? OR m.email LIKE ? OR m.company LIKE ?)';
+    sql += ' AND (m.first_name LIKE ? OR m.last_name LIKE ? OR m.nickname LIKE ? OR m.email LIKE ? OR m.company LIKE ? OR m.company_name LIKE ? OR m.job_title LIKE ?)';
     const like = `%${search}%`;
-    params.push(like, like, like, like);
+    params.push(like, like, like, like, like, like, like);
   }
-  if (status) { sql += ' AND m.status = ?'; params.push(status); }
-  if (tier)   { sql += ' AND m.tier = ?';   params.push(tier); }
+  if (status)     { sql += ' AND m.status = ?';     params.push(status); }
+  if (tier)       { sql += ' AND m.tier = ?';       params.push(tier); }
+  if (seg_status) { sql += ' AND m.seg_status = ?'; params.push(seg_status); }
 
   const [rows] = await db.execute(sql, params);
   return rows[0].total;
 };
 
-const listMembers = async ({ search, status, tier, sort, order, limit, offset }) => {
-  const allowedSort  = ['joined_at', 'first_name', 'last_name', 'status'];
+const listMembers = async ({ search, status, tier, seg_status, sort, order, limit, offset }) => {
+  const allowedSort  = ['joined_at', 'first_name', 'last_name', 'status', 'company_name', 'tier', 'seg_status'];
   const allowedOrder = ['ASC', 'DESC'];
   const sortCol  = allowedSort.includes(sort)          ? sort  : 'joined_at';
   const sortDir  = allowedOrder.includes(order?.toUpperCase()) ? order.toUpperCase() : 'DESC';
 
-  let sql = `SELECT m.id, m.first_name, m.last_name, m.email, m.company, m.tier,
-                    m.status, m.joined_at, m.is_executive
+  let sql = `SELECT m.id, m.first_name, m.last_name, m.nickname, m.email, m.phone,
+                    COALESCE(m.company_name, m.company) AS company, m.company_name, m.job_title,
+                    m.board_position, m.home_street, m.home_city, m.home_state, m.home_zip,
+                    m.company_street, m.company_city, m.company_state, m.company_zip, m.company_phone,
+                    m.seg_status, m.tgs_member, m.education, m.university, m.degree, m.major,
+                    m.avatar_url, m.privacy_policy, m.tier, m.status, m.joined_at, m.is_executive
              FROM members m
              WHERE 1=1`;
   const params = [];
 
   if (search) {
-    sql += ' AND (m.first_name LIKE ? OR m.last_name LIKE ? OR m.email LIKE ? OR m.company LIKE ?)';
+    sql += ' AND (m.first_name LIKE ? OR m.last_name LIKE ? OR m.nickname LIKE ? OR m.email LIKE ? OR m.company LIKE ? OR m.company_name LIKE ? OR m.job_title LIKE ?)';
     const like = `%${search}%`;
-    params.push(like, like, like, like);
+    params.push(like, like, like, like, like, like, like);
   }
-  if (status) { sql += ' AND m.status = ?'; params.push(status); }
-  if (tier)   { sql += ' AND m.tier = ?';   params.push(tier); }
+  if (status)     { sql += ' AND m.status = ?';     params.push(status); }
+  if (tier)       { sql += ' AND m.tier = ?';       params.push(tier); }
+  if (seg_status) { sql += ' AND m.seg_status = ?'; params.push(seg_status); }
 
   const safeLimit  = parseInt(limit,  10);
   const safeOffset = parseInt(offset, 10);
@@ -107,17 +117,43 @@ const getMemberById = async (id) => {
 
 const createMemberApplication = async (data) => {
   const {
-    userId, email, firstName, lastName, phone, linkedin_url, company, job_title,
-    experience, industry, motivation, referred, tier,
+    userId, email, firstName, lastName, nickname, phone,
+    homeStreet, homeCity, homeState, homeZip,
+    avatarUrl, privacyPolicy,
+    companyName, company, companyStreet, companyCity, companyState, companyZip, companyPhone,
+    boardPosition, jobTitle, segStatus,
+    university, degree, major, education, tgsMember,
+    linkedin_url, experience, industry, motivation, referred, tier,
   } = data;
+
+  const resolvedCompany = companyName || company || null;
+  const educationJson = education ? (typeof education === 'string' ? education : JSON.stringify(education)) : null;
+
   await db.execute(
     `INSERT INTO members
-     (user_id, email, first_name, last_name, phone, linkedin_url, company, job_title,
+     (user_id, email, first_name, last_name, nickname, phone,
+      home_street, home_city, home_state, home_zip,
+      avatar_url, privacy_policy, linkedin_url,
+      company, company_name, company_street, company_city, company_state, company_zip, company_phone,
+      board_position, job_title, seg_status,
+      university, degree, major, education, tgs_member,
       experience, industry, motivation, referred, tier, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-    [userId || null, email, firstName, lastName, phone || null, linkedin_url || null,
-     company || null, job_title || null, experience || null,
-     industry || null, motivation || null, referred ? 1 : 0, tier || 'professional']
+     VALUES (?, ?, ?, ?, ?, ?,
+             ?, ?, ?, ?,
+             ?, ?, ?,
+             ?, ?, ?, ?, ?, ?, ?,
+             ?, ?, ?,
+             ?, ?, ?, ?, ?,
+             ?, ?, ?, ?, ?, 'pending')`,
+    [
+      userId || null, email, firstName, lastName, nickname || null, phone || null,
+      homeStreet || null, homeCity || null, homeState || null, homeZip || null,
+      avatarUrl || null, privacyPolicy ? 1 : 0, linkedin_url || null,
+      resolvedCompany, resolvedCompany, companyStreet || null, companyCity || null, companyState || null, companyZip || null, companyPhone || null,
+      boardPosition || null, jobTitle || null, segStatus || 'non-member',
+      university || null, degree || null, major || null, educationJson, tgsMember ? 1 : 0,
+      experience || null, industry || null, motivation || null, referred ? 1 : 0, tier || 'professional'
+    ]
   );
 };
 
@@ -161,10 +197,37 @@ const toggleMemberExecutive = async (id, isExecutive) => {
 const updateMemberProfile = async (userId, data) => {
   const fields = [];
   const values = [];
-  const allowed = ['first_name', 'last_name', 'phone', 'linkedin_url', 'company', 'job_title', 'avatar_url'];
+  const allowed = [
+    'first_name', 'last_name', 'nickname', 'phone',
+    'home_street', 'home_city', 'home_state', 'home_zip',
+    'avatar_url', 'privacy_policy', 'linkedin_url',
+    'company', 'company_name', 'company_street', 'company_city', 'company_state', 'company_zip', 'company_phone',
+    'board_position', 'job_title', 'seg_status',
+    'university', 'degree', 'major', 'education', 'tgs_member',
+    'experience', 'industry', 'motivation',
+  ];
+
   allowed.forEach((f) => {
-    if (data[f] !== undefined) { fields.push(`${f} = ?`); values.push(data[f]); }
+    if (data[f] !== undefined) {
+      if (f === 'education' && typeof data[f] === 'object' && data[f] !== null) {
+        fields.push(`${f} = ?`);
+        values.push(JSON.stringify(data[f]));
+      } else if (f === 'privacy_policy' || f === 'tgs_member') {
+        fields.push(`${f} = ?`);
+        values.push(data[f] ? 1 : 0);
+      } else {
+        fields.push(`${f} = ?`);
+        values.push(data[f]);
+      }
+    }
   });
+
+  // If company_name is updated, also update company for legacy compatibility
+  if (data.company_name !== undefined && data.company === undefined) {
+    fields.push('company = ?');
+    values.push(data.company_name);
+  }
+
   if (!fields.length) return false;
   values.push(userId);
   const [result] = await db.execute(

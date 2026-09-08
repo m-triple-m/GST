@@ -17,6 +17,7 @@ const memberItems = [
 const executiveItems = [
   { name: 'Manage Events', icon: Calendar, path: '/dashboard/manage-events' },
   { name: 'All Members', icon: Users, path: '/dashboard/members' },
+  { name: 'Contact Inquiries', icon: Mail, path: '/dashboard/contact-inquiries' },
 ];
 
 /**

@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Calendar, Settings,
-  Globe, Menu, X, LogOut, UserCog
+  Globe, Menu, X, LogOut, UserCog, Building2, Mail
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const BASE_SIDEBAR_ITEMS = [
-  { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
-  { name: 'Members', icon: Users, path: '/admin/members' },
-  { name: 'Events', icon: Calendar, path: '/admin/events' },
-  { name: 'Admin Accounts', icon: UserCog, path: '/admin/accounts' },
-  { name: 'Settings', icon: Settings, path: '/admin/settings' },
+  { name: 'Dashboard',         icon: LayoutDashboard, path: '/admin' },
+  { name: 'Members',           icon: Users,           path: '/admin/members' },
+  { name: 'Events',            icon: Calendar,        path: '/admin/events' },
+  { name: 'Sponsors',          icon: Building2,       path: '/admin/sponsors' },
+  { name: 'Contact Inquiries', icon: Mail,            path: '/admin/contact-inquiries' },
+  { name: 'Admin Accounts',    icon: UserCog,         path: '/admin/accounts' },
+  { name: 'Settings',          icon: Settings,        path: '/admin/settings' },
 ];
 
 /**
@@ -20,6 +22,7 @@ const BASE_SIDEBAR_ITEMS = [
  */
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -37,10 +40,18 @@ export default function AdminLayout() {
           .catch(err => console.error('Failed to load profile for admin sidebar', err));
       });
     };
+    const fetchUnreadCount = () => {
+      import('../api').then(({ default: api }) => {
+        api.get('/admin/stats')
+          .then(res => setUnreadCount(res.data.data?.unread_inquiries || 0))
+          .catch(err => console.error('Failed to load unread inquiries count', err));
+      });
+    };
     fetchProfile();
+    fetchUnreadCount();
     window.addEventListener('profileUpdated', fetchProfile);
     return () => window.removeEventListener('profileUpdated', fetchProfile);
-  }, []);
+  }, [location.pathname]);
 
   const displayName = profile?.first_name
     ? `${profile.first_name} ${profile.last_name || ''}`.trim()
@@ -104,17 +115,30 @@ export default function AdminLayout() {
         <nav className="flex-1 p-4 space-y-1">
           {sidebarItems.map((item) => {
             const isActive = location.pathname === item.path;
+            const isContactItem = item.path === '/admin/contact-inquiries';
             return (
               <Link
                 key={item.name}
                 to={item.path}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold tracking-wider transition-all duration-200 group ${isActive
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold tracking-wider transition-all duration-200 group ${isActive
                   ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20'
                   : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   }`}
               >
-                <item.icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-teal-400'}`} />
-                <span className={!sidebarOpen ? 'hidden' : 'block'}>{item.name.toUpperCase()}</span>
+                <div className="flex items-center gap-3">
+                  <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-teal-400'}`} />
+                  <span className={!sidebarOpen ? 'hidden' : 'block'}>{item.name.toUpperCase()}</span>
+                </div>
+                {isContactItem && unreadCount > 0 && sidebarOpen && (
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
+                    isActive ? 'bg-white text-teal-700' : 'bg-teal-500/20 text-teal-400'
+                  }`}>
+                    {unreadCount}
+                  </span>
+                )}
+                {isContactItem && unreadCount > 0 && !sidebarOpen && (
+                  <span className="w-2 h-2 rounded-full bg-teal-400 shrink-0" />
+                )}
               </Link>
             );
           })}

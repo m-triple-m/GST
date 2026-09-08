@@ -13,8 +13,10 @@
     "@tailwindcss/vite": "^4.2.4",
     "axios": "^1.18.1",
     "lucide-react": "^1.14.0",
+    "motion": "^13.2.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.15.0",
     "tailwindcss": "^4.2.4",
     "three": "^0.185.1"

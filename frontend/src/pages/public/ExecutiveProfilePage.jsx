@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { 
-  Mail, Link as LinkIcon, Share2,
-  Link2, ExternalLink, AtSign,
-  Award, CheckCircle2, PenTool, Lock,
-  MessageSquare, ThumbsUp, Filter, ArrowLeft, Loader2
+  Users, ChevronRight, ArrowLeft, Mail, Phone, MapPin, 
+  Briefcase, GraduationCap, Award, ShieldCheck, CheckCircle2, 
+  Copy, Check, ExternalLink, Calendar, Building2, Loader2,
+  FileText, Sparkles
 } from 'lucide-react';
 import api from '../../api';
 
@@ -13,10 +13,12 @@ export default function ExecutiveProfilePage() {
   const navigate = useNavigate();
   const [exec, setExec] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchExecutive = async () => {
       try {
+        setLoading(true);
         const { data } = await api.get(`/members/executive/${id}`);
         setExec(data.data);
       } catch (err) {
@@ -28,12 +30,18 @@ export default function ExecutiveProfilePage() {
     fetchExecutive();
   }, [id]);
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center pt-20">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-teal-500 animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading profile...</p>
+          <Loader2 className="w-10 h-10 text-teal-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600 font-medium text-sm">Loading executive profile...</p>
         </div>
       </div>
     );
@@ -41,217 +49,450 @@ export default function ExecutiveProfilePage() {
 
   if (!exec) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        <div className="text-center">
-          <h1 className="text-2xl font-black mb-4 tracking-tight">Profile Not Found</h1>
-          <button onClick={() => navigate('/executive')} className="text-teal-400 text-sm hover:underline">← Back to Leadership</button>
+      <div className="min-h-screen bg-slate-50 pt-28 pb-16">
+        <div className="max-w-2xl mx-auto px-4 text-center py-20 bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <h1 className="text-2xl font-black text-slate-900 mb-2">Executive Member Not Found</h1>
+          <p className="text-slate-500 text-sm mb-6">
+            The requested executive profile could not be found or is no longer an active board member.
+          </p>
+          <button 
+            onClick={() => navigate('/executive')}
+            className="btn-teal px-6 py-2.5 rounded-xl font-bold text-white text-sm inline-flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Executive Board</span>
+          </button>
         </div>
       </div>
     );
   }
 
-  const fullName = `${exec.first_name} ${exec.last_name}`;
-  const role = exec.job_title || 'EXECUTIVE MEMBER';
-  const joinedDate = (exec.joined_at || exec.created_at) ? new Date(exec.joined_at || exec.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'Unknown';
-  const image = exec.profile_image || exec.avatar_url || exec.exec_photo_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80';
-  const bio = exec.bio || `${fullName} is an active member of the Executive Board of the Geophysical Society of Tulsa.`;
+  const fullName = exec.nickname 
+    ? `${exec.first_name} "${exec.nickname}" ${exec.last_name}` 
+    : `${exec.first_name} ${exec.last_name}`;
 
-  // Provide some default dummy achievements & links for the UI since they aren't in DB yet
-  const achievements = [
-    { name: 'VERIFIED', icon: CheckCircle2, locked: false },
-    { name: 'AUTHOR', icon: PenTool, locked: false },
-    { name: 'LOCKED', icon: Lock, locked: true },
-  ];
-  
-  const links = [
-    { name: 'LINKEDIN', url: '#', icon: Link2 },
-  ];
+  const role = exec.board_position || exec.exec_position || exec.job_title || 'Executive Board Member';
+  const company = exec.company_name || exec.company || null;
+  const image = exec.profile_image || exec.avatar_url || exec.exec_photo_url || null;
+  const bio = exec.exec_bio || exec.bio || 
+    `${fullName} serves on the Executive Board of the Geophysical Society of Tulsa (GST), contributing leadership, technical expertise, and vision to foster the advancement of geophysics in the Tulsa community and energy industry.`;
 
-  const activity = [
-    {
-      id: 1,
-      title: 'MEMBER_JOINED',
-      desc: `${fullName} joined the Geophysical Society of Tulsa.`,
-      tag: 'JOINED',
-      time: 'Recently'
+  // Parse education records
+  let educationList = [];
+  if (exec.education) {
+    if (Array.isArray(exec.education)) {
+      educationList = exec.education;
+    } else if (typeof exec.education === 'string') {
+      try {
+        const parsed = JSON.parse(exec.education);
+        if (Array.isArray(parsed)) educationList = parsed;
+      } catch (e) {
+        // Not valid JSON string
+      }
     }
-  ];
+  }
+
+  // Fallback single degree if list is empty
+  if (educationList.length === 0 && (exec.university || exec.degree || exec.major)) {
+    educationList.push({
+      university: exec.university || '',
+      degree: exec.degree || '',
+      major: exec.major || ''
+    });
+  }
+
+  const joinedDate = (exec.joined_at || exec.created_at)
+    ? new Date(exec.joined_at || exec.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+    : null;
+
+  const segLabel = exec.seg_status && exec.seg_status !== 'non-member'
+    ? `${exec.seg_status.charAt(0).toUpperCase() + exec.seg_status.slice(1)} Member`
+    : 'Non-Member';
+
+  const companyLocation = [exec.company_city, exec.company_state].filter(Boolean).join(', ');
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white seismic-pattern" style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div className="min-h-screen bg-slate-50">
 
-      {/* ── Sub-nav Header ── */}
-      <div className="px-10 py-5 border-b border-teal-500/20 flex items-center justify-between sticky top-16 bg-slate-950/95 backdrop-blur-xl z-20">
-        <div className="flex items-center gap-10">
-          <Link to="/" className="text-lg font-black tracking-tight text-white">GST</Link>
-          <div className="flex gap-8">
-            {['EXPLORE', 'DONATE', 'ABOUT'].map(item => (
-              <Link key={item} to="#" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-teal-400 transition-colors">{item}</Link>
-            ))}
-            <Link to="/executive" className="text-[10px] font-bold text-teal-400 uppercase tracking-widest border-b border-teal-500 pb-1">MEMBERS</Link>
+      {/* ── Page Hero ─────────────────────────────────────────── */}
+      <div className="bg-slate-900 pt-28 pb-14 relative overflow-hidden">
+        <div className="absolute inset-0 seismic-pattern opacity-20" />
+        <div className="absolute right-0 top-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-slate-400 mb-5 flex-wrap">
+            <Link to="/" className="hover:text-teal-400 transition-colors">Home</Link>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+            <Link to="/executive" className="hover:text-teal-400 transition-colors">Executive Board</Link>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+            <span className="text-teal-400 font-medium truncate max-w-xs">{fullName}</span>
           </div>
+
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-teal-500/10 border border-teal-500/30 rounded-full text-teal-400 text-xs font-bold tracking-widest uppercase mb-4">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Leadership Profile</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-3">
+            {fullName}
+          </h1>
+          <p className="text-teal-300 text-lg sm:text-xl font-medium max-w-3xl">
+            {role} {company && <span className="text-slate-300 font-normal">at {company}</span>}
+          </p>
         </div>
-        <button className="btn-teal px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest text-white rounded-lg">
-          <span>JOIN US</span>
-        </button>
       </div>
 
-      {/* ── Back link ── */}
-      <div className="max-w-6xl mx-auto px-10 pt-10">
-        <button onClick={() => navigate('/executive')} className="flex items-center gap-2 text-slate-500 hover:text-teal-400 transition-colors text-xs font-bold tracking-widest uppercase mb-10">
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Executive Board
-        </button>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-10 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-10">
-
-        {/* ── LEFT COLUMN ── */}
-        <div className="lg:col-span-4 space-y-6">
-
-          {/* Profile image */}
-          <div className="relative rounded-xl overflow-hidden aspect-square glass-card">
-            <img src={image} alt={fullName} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700" />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent" />
-            {/* Teal border accent */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-500 to-teal-400/0" />
-          </div>
-
-          {/* Profile card */}
-          <div className="glass-card rounded-xl p-8 space-y-6">
-            <div>
-              <h1 className="text-2xl font-black text-white tracking-tight mb-2 uppercase">{fullName}</h1>
-              <span className="inline-block px-3 py-1.5 bg-teal-500/15 border border-teal-500/30 text-teal-400 text-[9px] font-black tracking-[0.2em] uppercase rounded-md">
-                {role}
-              </span>
-              <p className="text-slate-500 text-[10px] font-bold mt-3 italic tracking-wider">Joined: {joinedDate}</p>
-            </div>
-
-            <div className="h-px bg-teal-500/15" />
-
-            <button className="w-full py-3.5 btn-teal text-[10px] font-black uppercase tracking-widest text-white rounded-lg">
-              <span>Message Member</span>
-            </button>
-
-            <div className="flex gap-3">
-              {[
-                { icon: LinkIcon, label: 'Copy Link' },
-                { icon: Share2, label: 'Share' },
-                { icon: Mail, label: 'Email' },
-              ].map(({ icon: Icon, label }) => (
-                <button key={label} title={label} className="flex-1 py-3 glass-card border-0 rounded-lg flex items-center justify-center text-slate-400 hover:text-teal-400 hover:bg-teal-500/10 transition-all duration-200">
-                  <Icon className="w-4 h-4" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Professional links */}
-          <div className="glass-card rounded-xl p-8">
-            <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.25em] mb-6">PROFESSIONAL_LINKS</h3>
-            <div className="space-y-4">
-              {links.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.url}
-                  className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-teal-400 transition-colors group"
-                >
-                  <div className="w-7 h-7 rounded-md glass-card flex items-center justify-center group-hover:border-teal-500/40 transition-colors">
-                    <link.icon className="w-3.5 h-3.5" />
-                  </div>
-                  {link.name}
-                </a>
-              ))}
-            </div>
-          </div>
+      {/* ── Main Content Section ──────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        
+        {/* Navigation Return */}
+        <div className="mb-8">
+          <Link 
+            to="/executive" 
+            className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-teal-600 transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span>Back to Executive Board</span>
+          </Link>
         </div>
 
-        {/* ── RIGHT COLUMN ── */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
 
-          {/* Bio */}
-          <div className="glass-card rounded-xl p-10">
-            <h3 className="text-[9px] font-black text-teal-500 uppercase tracking-[0.25em] mb-6">INTRODUCTION // MEMBER_BIO</h3>
-            <p className="text-slate-300 text-lg font-medium leading-relaxed">
-              {bio}
-            </p>
-          </div>
+          {/* ── LEFT COLUMN: Executive Identity & Fast Details ─── */}
+          <div className="lg:col-span-4 space-y-6">
 
-          {/* Achievements */}
-          <div className="glass-card rounded-xl p-10">
-            <h3 className="text-[9px] font-black text-teal-500 uppercase tracking-[0.25em] mb-8">ACHIEVEMENTS // AWARDS</h3>
-            <div className="flex gap-6 flex-wrap">
-              {achievements.map((ach) => (
-                <div key={ach.name} className={`flex flex-col items-center gap-3 group ${ach.locked ? 'opacity-25' : ''}`}>
-                  <div className={`w-14 h-14 rounded-xl glass-card flex items-center justify-center transition-all duration-300 ${
-                    !ach.locked ? 'hover:bg-teal-500/20 hover:border-teal-500/50 cursor-pointer text-teal-400' : 'text-slate-600'
-                  }`}>
-                    <ach.icon className="w-6 h-6" />
-                  </div>
-                  <span className="text-[8px] font-black tracking-widest uppercase text-slate-500 group-hover:text-teal-500 transition-colors">{ach.name}</span>
+            {/* Profile Avatar Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-7">
+              <div className="relative rounded-xl overflow-hidden aspect-square bg-gradient-to-br from-slate-100 to-slate-200 mb-6 flex items-center justify-center border border-slate-100">
+                {image ? (
+                  <img 
+                    src={image} 
+                    alt={fullName} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Users className="w-24 h-24 text-slate-300" />
+                )}
+                <div className="absolute top-3 right-3 bg-slate-900/80 backdrop-blur-md text-teal-300 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5 shadow-sm">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
+                  <span>GST Board</span>
                 </div>
-              ))}
+              </div>
+
+              <div className="text-center sm:text-left">
+                <span className="inline-block px-3 py-1 bg-teal-50 border border-teal-200 text-teal-700 text-xs font-bold rounded-lg mb-2 uppercase tracking-wide">
+                  {role}
+                </span>
+                <h2 className="text-2xl font-black text-slate-900 leading-tight">
+                  {fullName}
+                </h2>
+                {company && (
+                  <p className="text-slate-600 text-sm font-medium mt-1">
+                    {company}
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
+                {exec.email && (
+                  <a
+                    href={`mailto:${exec.email}`}
+                    className="btn-teal w-full py-3 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>Send Email</span>
+                  </a>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCopyLink}
+                    className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                    title="Share Profile"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-teal-600" />
+                        <span className="text-teal-600">Link Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Share Profile</span>
+                      </>
+                    )}
+                  </button>
+
+                  {exec.linkedin_url && (
+                    <a
+                      href={exec.linkedin_url.startsWith('http') ? exec.linkedin_url : `https://${exec.linkedin_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                      title="LinkedIn Profile"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                      <span>LinkedIn</span>
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
+
+            {/* At-a-Glance Meta Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-7">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-teal-600" />
+                <span>Executive Overview</span>
+              </h3>
+
+              <div className="space-y-4 text-sm">
+                {company && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0 text-teal-600">
+                      <Briefcase className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-400">Organization</p>
+                      <p className="text-slate-800 font-bold">{company}</p>
+                      {exec.job_title && exec.job_title !== role && (
+                        <p className="text-xs text-slate-500">{exec.job_title}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {companyLocation && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0 text-teal-600">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-400">Location</p>
+                      <p className="text-slate-800 font-semibold">{companyLocation}</p>
+                    </div>
+                  </div>
+                )}
+
+                {(exec.phone || exec.company_phone) && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0 text-teal-600">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-400">Phone</p>
+                      <a href={`tel:${exec.phone || exec.company_phone}`} className="text-slate-800 font-semibold hover:text-teal-600 transition-colors">
+                        {exec.phone || exec.company_phone}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {joinedDate && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0 text-teal-600">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-400">Member Since</p>
+                      <p className="text-slate-800 font-semibold">{joinedDate}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Society Affiliations Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-7">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Award className="w-4 h-4 text-teal-600" />
+                <span>Society Affiliations</span>
+              </h3>
+
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">Society of Exploration Geophysicists (SEG)</p>
+                    <p className="text-xs text-slate-500">National Affiliation</p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${
+                    exec.seg_status && exec.seg_status !== 'non-member'
+                      ? 'bg-teal-100 text-teal-800'
+                      : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {segLabel}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">Tulsa Geological Society (TGS)</p>
+                    <p className="text-xs text-slate-500">Sister Society</p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${
+                    exec.tgs_member
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {exec.tgs_member ? 'Active Member' : 'Non-Member'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          {/* Activity feed */}
-          <div className="glass-card rounded-xl overflow-hidden">
-            <div className="px-10 py-6 border-b border-teal-500/20 flex justify-between items-center">
-              <h3 className="text-[9px] font-black text-teal-500 uppercase tracking-[0.25em]">RECENT_ACTIVITY</h3>
-              <button className="text-slate-500 hover:text-teal-400 transition-colors"><Filter className="w-4 h-4" /></button>
+          {/* ── RIGHT COLUMN: Main Content & Credentials ───────── */}
+          <div className="lg:col-span-8 space-y-8">
+
+            {/* Biography & Executive Statement */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">
+                    Biography & Background
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Executive Profile
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-slate-600 text-base leading-relaxed space-y-4">
+                {bio.split('\n').map((paragraph, idx) => (
+                  paragraph.trim() ? (
+                    <p key={idx} className="leading-relaxed">
+                      {paragraph}
+                    </p>
+                  ) : null
+                ))}
+              </div>
             </div>
 
-            <div className="divide-y divide-teal-500/10">
-              {activity.map((act) => (
-                <div key={act.id} className="px-10 py-8 group hover:bg-teal-500/5 transition-all duration-200 relative">
-                  <div className="absolute top-8 right-10 text-[9px] font-bold text-slate-600 flex items-center gap-1.5">
-                    <span>{act.time}</span>
-                  </div>
-                  
-                  {/* Teal left accent on hover */}
-                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                  <h4 className="text-base font-black text-white mb-3 tracking-tight uppercase group-hover:text-teal-300 transition-colors pr-24">
-                    {act.title}
-                  </h4>
-                  <p className="text-slate-400 text-sm leading-relaxed mb-5 max-w-2xl">
-                    {act.desc}
+            {/* Academic & Education Background */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">
+                    Academic Background & Education
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Degrees & Credentials
                   </p>
+                </div>
+              </div>
 
-                  {act.metadata && (
-                    <div className="flex gap-6">
-                      <span className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-widest">
-                        <MessageSquare className="w-3.5 h-3.5 text-teal-600" />
-                        {act.metadata.replies} REPLIES
-                      </span>
-                      <span className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-widest">
-                        <ThumbsUp className="w-3.5 h-3.5 text-teal-600" />
-                        {act.metadata.upvotes} UPVOTES
-                      </span>
+              {educationList.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {educationList.map((edu, idx) => (
+                    <div 
+                      key={idx}
+                      className="p-5 rounded-xl bg-slate-50 border border-slate-100 hover:border-teal-200 hover:bg-teal-50/30 transition-all duration-200 flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2.5 py-0.5 bg-teal-100 text-teal-800 rounded-md text-xs font-bold uppercase tracking-wider">
+                            {edu.degree || 'Degree'}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-slate-900 text-base mb-1">
+                          {edu.major || 'Field of Study'}
+                        </h4>
+                        <p className="text-sm text-slate-600 flex items-center gap-1.5 font-medium">
+                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{edu.university || 'University / Institution'}</span>
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 rounded-xl bg-slate-50 border border-slate-100 text-center text-slate-500">
+                  <p className="text-sm font-medium">Professional geophysics credentials and industry experience on file with GST.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Professional Industry Focus & Governance */}
+            {(exec.industry || exec.experience || exec.motivation) && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900">
+                      Professional Focus & Experience
+                    </h3>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      Industry Standing
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {exec.industry && (
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                      <p className="text-xs font-semibold text-slate-400 uppercase">Primary Industry</p>
+                      <p className="text-slate-800 font-bold text-base mt-0.5">{exec.industry}</p>
                     </div>
                   )}
-                  {act.tag && (
-                    <span className="inline-block px-3 py-1.5 bg-teal-500/10 border border-teal-500/30 text-teal-400 text-[8px] font-black tracking-widest uppercase rounded-md">
-                      {act.tag}
-                    </span>
+                  {exec.experience && (
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                      <p className="text-xs font-semibold text-slate-400 uppercase">Experience</p>
+                      <p className="text-slate-800 font-bold text-base mt-0.5">{exec.experience} Years in Geophysics / Energy</p>
+                    </div>
                   )}
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Reach out CTA card */}
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 sm:p-10 text-white relative overflow-hidden shadow-sm">
+              <div className="absolute inset-0 seismic-pattern opacity-10" />
+              <div className="relative">
+                <h3 className="text-2xl font-black text-white mb-2">
+                  Connect with {exec.first_name}
+                </h3>
+                <p className="text-slate-300 text-sm max-w-xl mb-6 leading-relaxed">
+                  Have a question about GST operations, committee initiatives, technical presentations, or partnership opportunities? Reach out directly or connect with our leadership board.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  {exec.email && (
+                    <a 
+                      href={`mailto:${exec.email}`}
+                      className="btn-teal px-6 py-3 rounded-xl font-bold text-white text-sm inline-flex items-center gap-2"
+                    >
+                      <Mail className="w-4 h-4" />
+                      <span>Email {exec.first_name}</span>
+                    </a>
+                  )}
+                  <Link
+                    to="/executive"
+                    className="px-6 py-3 rounded-xl font-bold text-white text-sm border border-white/20 hover:bg-white/10 transition-colors inline-flex items-center gap-2"
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>View All Board Members</span>
+                  </Link>
+                </div>
+              </div>
             </div>
+
           </div>
+
         </div>
+
       </div>
 
-      {/* Footer */}
-      <footer className="px-10 py-10 border-t border-teal-500/20 flex flex-col md:flex-row items-center justify-between gap-8 mt-10">
-        <div className="text-lg font-black tracking-tight text-white">GST</div>
-        <div className="flex items-center gap-10">
-          {['PRIVACY POLICY', 'TERMS OF SERVICE', 'CONTACT', 'FAQ'].map((item) => (
-            <Link key={item} to="#" className="text-[9px] font-bold text-slate-600 hover:text-teal-400 transition-colors tracking-widest uppercase">{item}</Link>
-          ))}
-        </div>
-        <p className="text-[8px] font-bold text-slate-600 tracking-widest uppercase">© 2024 GEOPHYSICAL SOCIETY OF TULSA</p>
-      </footer>
     </div>
   );
 }

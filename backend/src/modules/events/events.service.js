@@ -48,7 +48,21 @@ const updateEvent = async (id, data) => {
   return repo.getEventById(id);
 };
 
-const deleteEvent = async (id) => {
+const deleteEvent = async (id, userId, password) => {
+  if (!password || !password.trim()) {
+    throw ApiError.badRequest('Admin password is required to delete an event.');
+  }
+
+  const authRepo = require('../auth/auth.repository');
+  const user = await authRepo.findUserByIdWithHash(userId);
+  if (!user) throw ApiError.notFound('Admin user not found');
+
+  const bcrypt = require('bcrypt');
+  const match = await bcrypt.compare(password, user.password_hash);
+  if (!match) {
+    throw ApiError.unauthorized('Incorrect admin password. Deletion cancelled.');
+  }
+
   const deleted = await repo.deleteEvent(id);
   if (!deleted) throw ApiError.notFound('Event not found');
 };
@@ -84,10 +98,87 @@ const registerForEvent = async (eventId, data, userId) => {
 const getEventRegistrations = async (eventId) => {
   const event = await repo.getEventById(eventId);
   if (!event) throw ApiError.notFound('Event not found');
-  return repo.getEventRegistrations(eventId);
+  
+  const registrations = await repo.getEventRegistrations(eventId);
+
+  // Compute detailed analytics
+  let totalParticipants = 0;
+  let totalRevenue = 0;
+  let pendingRevenue = 0;
+  let refundedAmount = 0;
+  let membersCount = 0;
+  let guestsCount = 0;
+
+  const paymentStatusCounts = { paid: 0, pending: 0, refunded: 0, failed: 0 };
+  const paymentMethodCounts = { card: 0, at_door: 0, waived: 0 };
+
+  registrations.forEach(r => {
+    const guestList = Array.isArray(r.guests) ? r.guests : [];
+    const partySize = 1 + guestList.length;
+
+    if (r.payment_status !== 'refunded') {
+      totalParticipants += partySize;
+    }
+
+    const amount = Number(r.amount_paid) || 0;
+    if (r.payment_status === 'paid') {
+      totalRevenue += amount;
+    } else if (r.payment_status === 'pending') {
+      pendingRevenue += amount;
+    } else if (r.payment_status === 'refunded') {
+      refundedAmount += amount;
+    }
+
+    if (r.attendee_type === 'member') {
+      membersCount += 1;
+    } else {
+      guestsCount += 1;
+    }
+
+    if (paymentStatusCounts[r.payment_status] !== undefined) {
+      paymentStatusCounts[r.payment_status] += 1;
+    }
+
+    if (paymentMethodCounts[r.payment_method] !== undefined) {
+      paymentMethodCounts[r.payment_method] += 1;
+    }
+  });
+
+  const capacity = Number(event.capacity) || 0;
+  const fillPercentage = capacity > 0 ? Math.min(100, Math.round((totalParticipants / capacity) * 100)) : 0;
+
+  const analytics = {
+    total_bookings: registrations.length,
+    total_participants: totalParticipants,
+    total_revenue: totalRevenue,
+    pending_revenue: pendingRevenue,
+    refunded_amount: refundedAmount,
+    capacity,
+    fill_percentage: fillPercentage,
+    members_count: membersCount,
+    guests_count: guestsCount,
+    payment_status_counts: paymentStatusCounts,
+    payment_method_counts: paymentMethodCounts,
+  };
+
+  return {
+    event,
+    registrations,
+    analytics,
+  };
+};
+
+const updateRegistrationPaymentStatus = async (registrationId, payment_status, payment_method) => {
+  const validStatuses = ['pending', 'paid', 'failed', 'refunded'];
+  if (!validStatuses.includes(payment_status)) {
+    throw ApiError.badRequest('Invalid payment status');
+  }
+  const updated = await repo.updateRegistrationPaymentStatus(registrationId, payment_status, payment_method);
+  if (!updated) throw ApiError.notFound('Registration not found');
+  return { id: registrationId, payment_status, payment_method };
 };
 
 module.exports = {
   listEvents, getEventById, createEvent, updateEvent, deleteEvent,
-  registerForEvent, getEventRegistrations,
+  registerForEvent, getEventRegistrations, updateRegistrationPaymentStatus,
 };

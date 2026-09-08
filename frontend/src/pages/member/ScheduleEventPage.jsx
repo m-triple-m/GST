@@ -31,6 +31,7 @@ const INITIAL = {
   duration_minutes: '',
   rsvp_deadline:    '',
   location_type:    'online',
+  location_name:    '',
   location_url:     '',
   location_address: '',
   capacity:         '',
@@ -56,8 +57,9 @@ const DUMMY_DATA = {
   duration_minutes: '90',
   rsvp_deadline:    (() => { const d = new Date(); d.setDate(d.getDate() + 25); return d.toISOString().split('T')[0]; })(),
   location_type:    'physical',
+  location_name:    'Tulsa Country Club',
   location_url:     '',
-  location_address: 'Tulsa Country Club, 701 N Union Ave, Tulsa, OK 74127',
+  location_address: '701 N Union Ave, Tulsa, OK 74127',
   capacity:         '150',
   member_ticket_cost:     '25.00',
   non_member_ticket_cost: '35.00',
@@ -104,6 +106,7 @@ export default function ScheduleEventPage() {
           duration_minutes: event.duration_minutes != null ? String(event.duration_minutes) : '',
           rsvp_deadline:    event.rsvp_deadline ? new Date(event.rsvp_deadline).toISOString().split('T')[0] : '',
           location_type:    event.location_type || 'online',
+          location_name:    event.location_name || '',
           location_url:     event.location_url || '',
           location_address: event.location_address || '',
           capacity:         event.capacity || '',
@@ -205,7 +208,9 @@ export default function ScheduleEventPage() {
         speaker_image_url:form.speaker_image_url.trim() || undefined,
         speaker_bio:      form.speaker_bio.trim() || undefined,
         event_date:       form.event_date || undefined,
+        start_time:       form.start_time || undefined,
         location_type:    form.location_type,
+        location_name:    form.location_name?.trim() || (form.location_type === 'online' ? 'Online' : undefined),
         location_url:     ['online', 'hybrid'].includes(form.location_type) ? form.location_url.trim() : undefined,
         location_address: ['physical', 'hybrid'].includes(form.location_type) ? form.location_address.trim() : undefined,
         capacity:         form.capacity ? parseInt(form.capacity, 10) : 0,
@@ -504,14 +509,14 @@ export default function ScheduleEventPage() {
                   {['online', 'hybrid'].includes(form.location_type) && (
                     <div>
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
-                        Meeting URL
+                        Meeting URL / Platform Link
                       </label>
                       <div className="relative">
                         <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                           value={form.location_url}
                           onChange={(e) => set('location_url', e.target.value)}
-                          placeholder="https://zoom.us/j/..."
+                          placeholder="https://zoom.us/j/... or Teams link"
                           className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300"
                         />
                       </div>
@@ -519,20 +524,36 @@ export default function ScheduleEventPage() {
                   )}
                   
                   {['physical', 'hybrid'].includes(form.location_type) && (
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
-                        Venue Address
-                      </label>
-                      <div className="relative">
-                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          value={form.location_address}
-                          onChange={(e) => set('location_address', e.target.value)}
-                          placeholder="Enter in-person address"
-                          className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300"
-                        />
+                    <>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                          Venue / Facility Name
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            value={form.location_name}
+                            onChange={(e) => set('location_name', e.target.value)}
+                            placeholder="e.g., Tulsa Country Club, DoubleTree by Hilton"
+                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300"
+                          />
+                        </div>
                       </div>
-                    </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1.5">
+                          Venue Street Address
+                        </label>
+                        <div className="relative">
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            value={form.location_address}
+                            onChange={(e) => set('location_address', e.target.value)}
+                            placeholder="e.g., 701 N Union Ave, Tulsa, OK 74127"
+                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-300"
+                          />
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

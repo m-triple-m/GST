@@ -6,7 +6,7 @@ const enquiryValidation = [
   body('contact_name').trim().notEmpty().withMessage('Contact name is required'),
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   body('phone').optional().isString(),
-  body('tier_interest').optional().isIn(['Bronze','Silver','Gold','Platinum','Custom']),
+  body('tier_interest').optional().isString(),
   body('message').optional().isString(),
 ];
 

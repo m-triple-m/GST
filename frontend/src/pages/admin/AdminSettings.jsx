@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   Settings, Globe, Mail, Bell, Shield, Trash2, Key, Database,
-  Save, AlertTriangle, ToggleLeft, ToggleRight, ChevronRight, Loader2, Sliders, Users, CreditCard, Lock, RefreshCw
+  Save, AlertTriangle, ToggleLeft, ToggleRight, ChevronRight, Loader2, Sliders, Users, CreditCard, Lock, RefreshCw, Check
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../../api';
 
 /* ── Reusable field components ── */
@@ -71,34 +72,38 @@ function SectionCard({ icon: Icon, title, children }) {
 
 export default function AdminSettings() {
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [memberFee, setMemberFee] = useState('');
   const [nonMemberFee, setNonMemberFee] = useState('');
 
   // Membership tier editing
   const [tiers, setTiers] = useState([
-    { name: 'Student',      price: '', color: 'bg-blue-50 text-blue-600' },
-    { name: 'Professional', price: '', color: 'bg-teal-50 text-teal-600' },
-    { name: 'Corporate',    price: '', color: 'bg-amber-50 text-amber-600' },
+    { id: 'student',      name: 'Student',      price: '15',  description: 'For full-time geoscience students', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+    { id: 'professional', name: 'Professional', price: '75',  description: 'For working geophysical professionals', color: 'bg-teal-50 text-teal-600 border-teal-200' },
+    { id: 'corporate',    name: 'Corporate',    price: '150', description: 'For companies & organizations', color: 'bg-amber-50 text-amber-600 border-amber-200' },
   ]);
-  const [editingTier, setEditingTier] = useState(null);
-  const [tierDraft, setTierDraft] = useState({ name: '', price: '' });
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         const { data } = await api.get('/settings');
-        if (data.data) {
-          setMemberFee(data.data.member_ticket_cost || '0.00');
-          setNonMemberFee(data.data.non_member_ticket_cost || '0.00');
+        if (data?.data) {
+          const s = data.data;
+          setMemberFee(s.member_ticket_cost || '25.00');
+          setNonMemberFee(s.non_member_ticket_cost || '35.00');
           // Load tier prices from settings if available
-          setTiers(prev => prev.map(t => ({
-            ...t,
-            price: data.data[`tier_${t.name.toLowerCase()}_price`] || t.price || '',
-          })));
+          setTiers(prev => prev.map(t => {
+            const val = s[`tier_${t.id}_price`];
+            return {
+              ...t,
+              price: val !== undefined && val !== null && val !== '' ? String(val) : t.price,
+            };
+          }));
         }
       } catch (err) {
         console.error('Failed to load settings', err);
+        toast.error('Failed to load settings from server');
       } finally {
         setLoading(false);
       }
@@ -106,30 +111,33 @@ export default function AdminSettings() {
     fetchSettings();
   }, []);
 
+  const updateTierPrice = (id, newPrice) => {
+    setTiers(prev => prev.map(t => t.id === id ? { ...t, price: newPrice } : t));
+  };
+
   const handleSave = async () => {
+    setSaving(true);
     try {
       const tierSettings = {};
-      tiers.forEach(t => { tierSettings[`tier_${t.name.toLowerCase()}_price`] = t.price; });
+      tiers.forEach(t => {
+        tierSettings[`tier_${t.id}_price`] = t.price;
+      });
+
       await api.put('/settings', {
         member_ticket_cost:     memberFee,
         non_member_ticket_cost: nonMemberFee,
         ...tierSettings,
       });
+
       setSaved(true);
+      toast.success('Membership fees and settings saved successfully!');
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       console.error('Failed to save settings', err);
+      toast.error('Failed to save settings. Please try again.');
+    } finally {
+      setSaving(false);
     }
-  };
-
-  const openEditTier = (tier) => {
-    setEditingTier(tier.name);
-    setTierDraft({ name: tier.name, price: tier.price });
-  };
-
-  const saveTierEdit = () => {
-    setTiers(prev => prev.map(t => t.name === editingTier ? { ...t, ...tierDraft } : t));
-    setEditingTier(null);
   };
 
   if (loading) {
@@ -152,14 +160,17 @@ export default function AdminSettings() {
         </div>
         <button
           onClick={handleSave}
-          className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black transition-all shadow-lg ${
+          disabled={saving}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg ${
             saved
-              ? 'bg-green-500 text-white shadow-green-500/20'
-              : 'btn-teal text-white shadow-teal-500/20'
+              ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+              : 'btn-teal text-white shadow-teal-500/20 disabled:opacity-60'
           }`}
         >
-          {saved ? (
-            <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saved!</>
+          {saving ? (
+            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+          ) : saved ? (
+            <><Check className="w-3.5 h-3.5" /> Saved Successfully!</>
           ) : (
             <><Save className="w-3.5 h-3.5" /> Save Changes</>
           )}
@@ -171,7 +182,7 @@ export default function AdminSettings() {
         {/* Page Title */}
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Admin Settings</h1>
-          <p className="text-slate-500 text-sm mt-1">Configure your GST site, membership tiers, notifications, and system security.</p>
+          <p className="text-slate-500 text-sm mt-1">Configure your GST site, fixed membership tier fees, event pricing, and system parameters.</p>
         </div>
 
         {/* General / Site Info */}
@@ -194,65 +205,61 @@ export default function AdminSettings() {
           </FieldGroup>
         </SectionCard>
 
-        {/* Membership Tiers */}
-        <SectionCard icon={CreditCard} title="Membership Tiers">
-          <div className="py-4 space-y-3">
+        {/* Membership Tiers & Pricing */}
+        <SectionCard icon={CreditCard} title="Membership Tiers & Annual Fees">
+          <p className="text-xs text-slate-500 pt-2 pb-4 leading-relaxed">
+            Set fixed annual dues for each membership tier. These fees are automatically reflected across the homepage, public application forms, and member invoices.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-6">
             {tiers.map((tier) => (
               <div
-                key={tier.name}
-                className="border border-slate-200 rounded-2xl overflow-hidden hover:border-teal-200 transition-all"
+                key={tier.id}
+                className="border border-slate-200 rounded-2xl p-5 bg-slate-50/50 hover:bg-white hover:border-teal-300 hover:shadow-sm transition-all space-y-3"
               >
-                {editingTier === tier.name ? (
-                  <div className="p-4 space-y-3 bg-teal-50">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tier Name</label>
-                        <input
-                          value={tierDraft.name}
-                          onChange={(e) => setTierDraft(d => ({ ...d, name: e.target.value }))}
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Annual Price ($)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          value={tierDraft.price}
-                          onChange={(e) => setTierDraft(d => ({ ...d, price: e.target.value }))}
-                          placeholder="0.00"
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={saveTierEdit} className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-xs font-black rounded-xl hover:bg-teal-500 transition-all">
-                        <Save className="w-3.5 h-3.5" /> Save
-                      </button>
-                      <button onClick={() => setEditingTier(null)} className="px-4 py-2 border border-slate-200 text-slate-500 text-xs font-bold rounded-xl hover:bg-slate-50 transition-all">
-                        Cancel
-                      </button>
-                    </div>
+                <div className="flex items-center justify-between">
+                  <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border ${tier.color}`}>
+                    {tier.name}
+                  </span>
+                  <span className="text-xs font-bold text-slate-400">Fixed Fee</span>
+                </div>
+
+                <p className="text-xs text-slate-500">{tier.description}</p>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                    Annual Price ($ USD)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={tier.price}
+                      onChange={(e) => updateTierPrice(tier.id, e.target.value)}
+                      placeholder="0.00"
+                      className="w-full pl-8 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all"
+                    />
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between p-4 bg-slate-50 group">
-                    <div className="flex items-center gap-4">
-                      <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg ${tier.color}`}>
-                        {tier.name}
-                      </span>
-                      <p className="text-sm font-bold text-slate-800">
-                        {tier.price ? `$${parseFloat(tier.price).toFixed(2)} / yr` : <span className="text-slate-400 font-medium italic">Not set</span>}
-                      </p>
-                    </div>
-                    <button onClick={() => openEditTier(tier)} className="flex items-center gap-1.5 text-xs font-bold text-slate-400 group-hover:text-teal-600 transition-colors">
-                      Edit <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Displays as: <strong className="text-teal-700">{tier.price ? `$${parseFloat(tier.price || 0).toFixed(0)}/yr` : 'Free'}</strong>
+                  </p>
+                </div>
               </div>
             ))}
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pt-1">Click "Save Changes" above after editing tiers to persist.</p>
+          </div>
+          <div className="flex items-center justify-between pt-2 pb-4 border-t border-slate-100">
+            <p className="text-[11px] text-slate-400 font-medium">
+              Click <strong>"Save Changes"</strong> in the top header or below to apply the updated fees everywhere.
+            </p>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="btn-teal px-5 py-2 rounded-xl text-xs font-bold text-white shadow-md shadow-teal-500/20"
+            >
+              Save Tier Fees
+            </button>
           </div>
         </SectionCard>
 

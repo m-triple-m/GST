@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { 
   Award, Target, Users, Globe, Check, ArrowRight, 
-  Building2, Send, CheckCircle, ShieldCheck, Sparkles, BarChart
+  Building2, Send, CheckCircle, ShieldCheck, Sparkles, BarChart, Loader2, AlertCircle
 } from 'lucide-react';
+import api from '../../api';
 
 const tiers = [
   {
@@ -54,10 +55,29 @@ const benefits = [
 export default function SponsorPage() {
   const [form, setForm] = useState({ company: '', contact: '', email: '', phone: '', tier: 'Gold', message: '' });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post('/sponsors/enquiry', {
+        company_name: form.company,
+        contact_name: form.contact,
+        email: form.email,
+        phone: form.phone,
+        tier_interest: form.tier,
+        message: form.message,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Failed to submit sponsor enquiry:', err);
+      setError(err.response?.data?.message || 'Failed to submit enquiry. Please try again or email us directly.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputCls = "w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all";
@@ -189,6 +209,12 @@ export default function SponsorPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                {error && (
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-rose-700 text-xs font-semibold animate-fade-in">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                    <span>{error}</span>
+                  </div>
+                )}
                 <div className="grid sm:grid-cols-2 gap-5">
                   <div>
                     <label className={labelCls}>Company Name</label>
@@ -224,9 +250,22 @@ export default function SponsorPage() {
                   <label className={labelCls}>Enquiry Message</label>
                   <textarea rows={4} className={inputCls + " resize-none"} placeholder="Tell us more about your sponsorship goals..." value={form.message} onChange={e => setForm({...form, message: e.target.value})} />
                 </div>
-                <button type="submit" className="w-full btn-teal px-8 py-4 rounded-xl text-white font-bold text-sm shadow-xl shadow-teal-600/20 flex items-center justify-center gap-2">
-                  <span>Send Enquiry</span>
-                  <Send className="w-4 h-4" />
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="w-full btn-teal px-8 py-4 rounded-xl text-white font-bold text-sm shadow-xl shadow-teal-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Submitting Enquiry...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Send Enquiry</span>
+                      <Send className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </form>
             )}

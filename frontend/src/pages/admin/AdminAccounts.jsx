@@ -5,6 +5,7 @@ import {
   KeyRound, ChevronRight, Shield
 } from 'lucide-react';
 import api from '../../api';
+import { gstToast } from '../../utils/toast';
 
 // ── Password Wall Modal ───────────────────────────────────────────────────────
 function PasswordWall({ onVerified, onClose }) {
@@ -224,8 +225,7 @@ export default function AdminAccounts() {
   const [wallOpen, setWallOpen] = useState(false);
   const [verified, setVerified] = useState(false);
 
-  const [showForm, setShowForm]   = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
+  const [showForm, setShowForm] = useState(false);
 
   const fetchAccounts = async () => {
     try {
@@ -234,6 +234,7 @@ export default function AdminAccounts() {
       setAccounts(data.data ?? []);
     } catch (err) {
       console.error('Failed to load admin accounts', err);
+      gstToast.error('Failed to load admin accounts.');
     } finally {
       setLoadingList(false);
     }
@@ -256,10 +257,9 @@ export default function AdminAccounts() {
   };
 
   const handleFormSuccess = (email) => {
-    setSuccessMsg(`Admin account for ${email} created successfully.`);
+    gstToast.success(`Admin account for ${email} created successfully.`);
     setShowForm(false);
     fetchAccounts();
-    setTimeout(() => setSuccessMsg(''), 6000);
   };
 
   return (
@@ -318,14 +318,6 @@ export default function AdminAccounts() {
             }
           </div>
         </div>
-
-        {/* Success toast */}
-        {successMsg && (
-          <div className="flex items-center gap-3 p-4 bg-teal-50 border border-teal-200 rounded-2xl text-teal-700 text-sm font-semibold">
-            <Check className="w-5 h-5 text-teal-500 shrink-0" />
-            {successMsg}
-          </div>
-        )}
 
         {/* Add Admin Form (shown after password wall is passed) */}
         {showForm && (

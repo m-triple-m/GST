@@ -13,9 +13,10 @@ const saveEnquiry = async (data) => {
 };
 
 const listEnquiries = async ({ limit, offset }) => {
-  const [rows] = await db.execute(
-    'SELECT * FROM sponsor_enquiries ORDER BY created_at DESC LIMIT ? OFFSET ?',
-    [limit, offset]
+  const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
+  const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
+  const [rows] = await db.query(
+    `SELECT * FROM sponsor_enquiries ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`
   );
   return rows;
 };
@@ -34,7 +35,7 @@ const updateEnquiryStatus = async (id, status) => {
 const listSponsors = async ({ activeOnly = false } = {}) => {
   const where = activeOnly ? 'WHERE is_active = 1' : '';
   const [rows] = await db.execute(
-    `SELECT * FROM sponsors ${where} ORDER BY sort_order ASC, tier ASC, created_at ASC`
+    `SELECT * FROM sponsors ${where} ORDER BY sort_order ASC, created_at ASC`
   );
   return rows;
 };
@@ -71,7 +72,26 @@ const deleteSponsor = async (id) => {
   await db.execute('DELETE FROM sponsors WHERE id = ?', [id]);
 };
 
+const reorderSponsors = async (items) => {
+  // items: [{ id, sort_order }]
+  // Run all updates inside a single connection for speed
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    for (const { id, sort_order } of items) {
+      await conn.execute('UPDATE sponsors SET sort_order = ? WHERE id = ?', [sort_order, id]);
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+};
+
 module.exports = {
   saveEnquiry, listEnquiries, countEnquiries, updateEnquiryStatus,
   listSponsors, getSponsorById, createSponsor, updateSponsor, deleteSponsor,
+  reorderSponsors,
 };

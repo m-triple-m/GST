@@ -205,27 +205,24 @@ body {
 /* Button styles */
 .btn-teal {
   background: linear-gradient(135deg, #008080, #006666);
-  transition: all 0.25s ease;
+  color: #ffffff;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
+  isolation: isolate;
 }
 
-.btn-teal::before {
-  content: '';
-  position: absolute;
-  inset: 0;
+.btn-teal:hover {
   background: linear-gradient(135deg, #00a0a0, #008080);
-  opacity: 0;
-  transition: opacity 0.25s ease;
+  color: #ffffff !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 128, 128, 0.4), 0 8px 10px -6px rgba(0, 128, 128, 0.3);
 }
 
-.btn-teal:hover::before {
-  opacity: 1;
+.btn-teal:active {
+  transform: translateY(1px);
 }
 
-.btn-teal span {
-  position: relative;
-  z-index: 1;
+.btn-teal * {
+  color: inherit;
 }
 
 .btn-outline-teal {
@@ -236,7 +233,7 @@ body {
 
 .btn-outline-teal:hover {
   background: #008080;
-  color: white;
+  color: #ffffff !important;
 }
 
 /* Tab underline */

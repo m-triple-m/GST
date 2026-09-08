@@ -16,10 +16,12 @@ router.get('/', ctrl.listSponsors);
 
 // ── Admin only ────────────────────────────────────────────────────────────────
 router.get('/all',       verifyToken, requireRole('admin'), ctrl.listAllSponsors);
+router.post('/reorder',  verifyToken, requireRole('admin'), ctrl.reorderSponsors);
 router.post('/',         verifyToken, requireRole('admin'), ctrl.createSponsor);
 router.put('/:id',       verifyToken, requireRole('admin'), ctrl.updateSponsor);
 router.delete('/:id',    verifyToken, requireRole('admin'), ctrl.deleteSponsor);
-router.get('/enquiries', verifyToken, requireRole('admin'), ctrl.listEnquiries);
+router.get('/enquiries',            verifyToken, requireRole('admin'), ctrl.listEnquiries);
+router.patch('/enquiries/:id/status', verifyToken, requireRole('admin'), ctrl.updateEnquiryStatus);
 
 // POST /api/sponsors/upload-logo — upload a logo file, returns { logo_url }
 router.post(

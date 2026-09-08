@@ -112,13 +112,27 @@ export default function RegisterEventPage() {
     }
   };
 
+  const formatEventTime = (timeStr) => {
+    if (!timeStr) return null;
+    const parts = String(timeStr).split(':');
+    if (parts.length < 2) return timeStr;
+    const h = parseInt(parts[0], 10);
+    const m = parts[1];
+    if (isNaN(h)) return timeStr;
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour = ((h % 12) || 12);
+    return `${hour}:${m} ${period}`;
+  };
+
   const formattedDate = event.event_date
     ? new Date(event.event_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : 'TBD';
-  const formattedTime = event.start_time
-    ? `${event.start_time}${event.end_time ? ` – ${event.end_time}` : ''}`
+  const startTimeFormatted = formatEventTime(event.start_time);
+  const endTimeFormatted = formatEventTime(event.end_time);
+  const formattedTime = startTimeFormatted
+    ? `${startTimeFormatted}${endTimeFormatted ? ` – ${endTimeFormatted}` : ''}`
     : 'TBD';
-  const locName = event.location_name || (event.location_type === 'online' ? 'Online' : 'TBD');
+  const locName = event.location_name || (event.location_type === 'online' ? 'Online' : (event.location_address || (event.location_type === 'hybrid' ? 'Hybrid (In Person & Online)' : 'In Person')));
 
   if (step === 3) {
     return (

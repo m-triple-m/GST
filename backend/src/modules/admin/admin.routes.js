@@ -10,6 +10,8 @@ router.use(verifyToken, requireRole('admin'));
 
 // GET /api/admin/stats
 router.get('/stats', ctrl.getStats);
+// GET /api/admin/revenue-analytics
+router.get('/revenue-analytics', ctrl.getRevenueAnalytics);
 // GET /api/admin/audit
 router.get('/audit', ctrl.getAuditLog);
 

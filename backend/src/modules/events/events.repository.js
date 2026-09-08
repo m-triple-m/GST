@@ -210,28 +210,52 @@ const deleteEvent = async (id) => {
 const registerForEvent = async (eventId, data, userId) => {
   const { attendee_name, attendee_email, company, dietary_notes, attendee_type, payment_method, guests = [] } = data;
   
-  const [eventRows] = await db.execute('SELECT ticket_cost FROM events WHERE id = ?', [eventId]);
-  const ticketCost = eventRows.length ? Number(eventRows[0].ticket_cost) : 0;
+  const [eventRows] = await db.execute('SELECT ticket_cost, member_ticket_cost, non_member_ticket_cost FROM events WHERE id = ?', [eventId]);
+  let ticketCost = 0;
+  if (eventRows.length) {
+    const ev = eventRows[0];
+    if (attendee_type === 'guest') {
+      ticketCost = Number(ev.non_member_ticket_cost) || Number(ev.ticket_cost) || 0;
+    } else {
+      ticketCost = Number(ev.member_ticket_cost) || Number(ev.ticket_cost) || 0;
+    }
+  }
   
-  const amount = ticketCost * (1 + guests.length);
+  const guestList = Array.isArray(guests) ? guests : [];
+  const amount = ticketCost * (1 + guestList.length);
 
   const [result] = await db.execute(
     `INSERT INTO event_registrations
      (event_id, user_id, attendee_name, attendee_email, company, dietary_notes,
       attendee_type, guests, payment_method, payment_status, amount_paid)
      VALUES (?,?,?,?,?,?,?,?,?, 'pending',?)`,
-    [eventId, userId||null, attendee_name, attendee_email, company||null,
-     dietary_notes||null, attendee_type||'member', JSON.stringify(guests), payment_method||'card', amount]
+    [eventId, userId || null, attendee_name, attendee_email, company || null,
+     dietary_notes || null, attendee_type || (userId ? 'member' : 'guest'), JSON.stringify(guestList), payment_method || 'card', amount]
   );
   return result.insertId;
 };
 
 const getEventRegistrations = async (eventId) => {
   const [rows] = await db.execute(
-    'SELECT * FROM event_registrations WHERE event_id = ? ORDER BY registered_at DESC',
+    `SELECT er.*, m.first_name, m.last_name, m.tier as member_tier
+     FROM event_registrations er
+     LEFT JOIN members m ON er.user_id = m.user_id
+     WHERE er.event_id = ?
+     ORDER BY er.registered_at DESC`,
     [eventId]
   );
-  return rows;
+  return rows.map(r => {
+    let parsedGuests = [];
+    try {
+      parsedGuests = typeof r.guests === 'string' ? JSON.parse(r.guests || '[]') : (r.guests || []);
+    } catch {
+      parsedGuests = [];
+    }
+    return {
+      ...r,
+      guests: parsedGuests,
+    };
+  });
 };
 
 const countRegistrations = async (eventId) => {
@@ -242,8 +266,25 @@ const countRegistrations = async (eventId) => {
   return rows[0].count;
 };
 
+const updateRegistrationPaymentStatus = async (registrationId, payment_status, payment_method) => {
+  let sql = 'UPDATE event_registrations SET payment_status = ?';
+  const params = [payment_status];
+
+  if (payment_method) {
+    sql += ', payment_method = ?';
+    params.push(payment_method);
+  }
+
+  sql += ' WHERE id = ?';
+  params.push(registrationId);
+
+  const [result] = await db.execute(sql, params);
+  return result.affectedRows > 0;
+};
+
 module.exports = {
   countEvents, listEvents, getEventById,
   createEvent, updateEvent, deleteEvent,
   registerForEvent, getEventRegistrations, countRegistrations,
+  updateRegistrationPaymentStatus,
 };

@@ -21,8 +21,9 @@ const listResources = async ({ search, year, category, access, limit, offset }) 
   if (year)     { sql += ' AND year = ?';     params.push(year); }
   if (category) { sql += ' AND category = ?'; params.push(category); }
   if (access)   { sql += ' AND access = ?';   params.push(access); }
-  sql += ' ORDER BY year DESC, id DESC LIMIT ? OFFSET ?';
-  params.push(limit, offset);
+  const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
+  const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
+  sql += ` ORDER BY year DESC, id DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
   const [rows] = await db.execute(sql, params);
   return rows;
 };

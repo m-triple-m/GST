@@ -11,14 +11,18 @@ const submitEnquiry = async (data) => {
 };
 
 const listEnquiries = async (query) => {
-  const page   = Math.max(1, query.page  || 1);
-  const limit  = Math.min(100, query.limit || 20);
+  const page   = Math.max(1, parseInt(query.page, 10)  || 1);
+  const limit  = Math.min(100, parseInt(query.limit, 10) || 20);
   const offset = (page - 1) * limit;
   const [enquiries, total] = await Promise.all([
     repo.listEnquiries({ limit, offset }),
     repo.countEnquiries(),
   ]);
   return { enquiries, pagination: buildPagination(page, limit, total) };
+};
+
+const updateEnquiryStatus = async (id, status) => {
+  await repo.updateEnquiryStatus(id, status);
 };
 
 // ── Sponsors (admin CRUD) ────────────────────────────────────────────────────
@@ -55,4 +59,9 @@ const deleteSponsor = async (id) => {
   await repo.deleteSponsor(id);
 };
 
-module.exports = { submitEnquiry, listEnquiries, listSponsors, getSponsor, createSponsor, updateSponsor, deleteSponsor };
+const reorderSponsors = async (items) => {
+  if (!Array.isArray(items) || !items.length) throw ApiError.badRequest('items array is required');
+  await repo.reorderSponsors(items);
+};
+
+module.exports = { submitEnquiry, listEnquiries, updateEnquiryStatus, listSponsors, getSponsor, createSponsor, updateSponsor, deleteSponsor, reorderSponsors };

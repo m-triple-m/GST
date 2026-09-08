@@ -1,9 +1,13 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Check, Users, Star, ArrowRight } from 'lucide-react';
+import api from '../api';
 
-const tiers = [
+const DEFAULT_TIERS = [
   {
+    id: 'student',
     name: 'Student',
-    price: '$15',
+    price: '$80',
     period: '/year',
     description: 'For geoscience students pursuing excellence in exploration geophysics.',
     features: [
@@ -14,13 +18,13 @@ const tiers = [
       'Digital newsletter subscription',
     ],
     cta: 'Join as Student',
-    href: 'https://gst.wildapricot.org/join-us',
     highlighted: false,
     badge: null,
   },
   {
+    id: 'professional',
     name: 'Professional',
-    price: '$75',
+    price: '$110',
     period: '/year',
     description: 'For working geophysicists, engineers, and earth science professionals.',
     features: [
@@ -32,38 +36,57 @@ const tiers = [
       'Committee participation eligibility',
     ],
     cta: 'Join as Professional',
-    href: 'https://gst.wildapricot.org/join-us',
     highlighted: true,
     badge: 'Most Popular',
   },
   {
-    name: 'Corporate Sponsor',
-    price: 'Custom',
-    period: '',
-    description: 'For companies seeking visibility and engagement with the Tulsa geophysical community.',
+    id: 'corporate',
+    name: 'Corporate',
+    price: '$150',
+    period: '/year',
+    description: 'For companies and organizations seeking full team participation and visibility.',
     features: [
-      'Logo placement at all GST events',
+      'Logo placement at GST meetings & site',
       'Multiple employee memberships',
-      'Golf tournament sponsorship',
-      'Technical presentation opportunity',
-      'Annual report recognition',
+      'Technical luncheon sponsor discounts',
+      'Priority event recognition',
+      'Annual society directory feature',
     ],
-    cta: 'Contact Us',
-    href: '#contact',
+    cta: 'Join as Corporate',
     highlighted: false,
     badge: null,
   },
 ];
 
 export default function Membership() {
-  const handleScroll = (href) => {
-    if (href.startsWith('#')) {
-      const el = document.querySelector(href);
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      window.open(href, '_blank');
-    }
-  };
+  const [tiers, setTiers] = useState(DEFAULT_TIERS);
+
+  useEffect(() => {
+    const fetchLiveTiers = async () => {
+      try {
+        const { data } = await api.get('/settings');
+        if (data?.data) {
+          const s = data.data;
+          setTiers(DEFAULT_TIERS.map((tier) => {
+            const raw = s[`tier_${tier.id}_price`];
+            if (raw !== undefined && raw !== null && raw !== '') {
+              const num = parseFloat(raw);
+              const formattedPrice = isNaN(num)
+                ? raw
+                : num === 0
+                  ? 'Free'
+                  : `$${num.toFixed(0)}`;
+              return { ...tier, price: formattedPrice };
+            }
+            return tier;
+          }));
+        }
+      } catch {
+        // Fallback to default
+      }
+    };
+    fetchLiveTiers();
+  }, []);
 
   return (
     <section id="membership" className="py-24 bg-slate-900 relative overflow-hidden">
@@ -91,7 +114,7 @@ export default function Membership() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
           {tiers.map((tier) => (
             <div
-              key={tier.name}
+              key={tier.id}
               className={`relative rounded-2xl p-8 flex flex-col transition-all duration-300 hover:-translate-y-1 ${
                 tier.highlighted
                   ? 'bg-teal-500 shadow-2xl shadow-teal-500/30 ring-1 ring-teal-400'
@@ -154,9 +177,9 @@ export default function Membership() {
               </ul>
 
               {/* CTA */}
-              <button
-                id={`membership-cta-${tier.name.toLowerCase().replace(/\s+/g, '-')}`}
-                onClick={() => handleScroll(tier.href)}
+              <Link
+                to={`/membership?tier=${tier.id}`}
+                id={`membership-cta-${tier.id}`}
                 className={`w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
                   tier.highlighted
                     ? 'bg-white text-teal-700 hover:bg-teal-50 shadow-lg'
@@ -164,7 +187,7 @@ export default function Membership() {
                 }`}
               >
                 {tier.cta} <ArrowRight className="w-4 h-4" />
-              </button>
+              </Link>
             </div>
           ))}
         </div>

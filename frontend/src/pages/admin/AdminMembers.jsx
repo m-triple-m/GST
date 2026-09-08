@@ -3,9 +3,11 @@ import {
   Users, Search,
   CheckCircle2, XCircle, AlertCircle, Star, StarOff,
   ChevronLeft, ChevronRight, RefreshCw, Loader2, Trash2,
-  ShieldAlert, ShieldCheck, ShieldOff, X, KeyRound, Copy, Eye
+  ShieldAlert, ShieldCheck, X, KeyRound, Copy, Eye,
+  MapPin, Building, GraduationCap, Phone, Mail, Award, Check
 } from 'lucide-react';
 import api from '../../api';
+import { gstToast } from '../../utils/toast';
 
 // ─────────────────────────────────────────────────────────
 //  Confirm Modal
@@ -33,15 +35,8 @@ function ConfirmModal({ open, onClose, onConfirm, title, message, confirmLabel =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Dialog */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
-        {/* Close */}
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all"
@@ -49,16 +44,13 @@ function ConfirmModal({ open, onClose, onConfirm, title, message, confirmLabel =
           <X className="w-4 h-4" />
         </button>
 
-        {/* Icon */}
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${iconCls}`}>
           <Icon className="w-6 h-6" />
         </div>
 
-        {/* Content */}
         <h3 className="text-base font-black text-slate-900 mb-1">{title}</h3>
         <p className="text-sm text-slate-500 leading-relaxed mb-6">{message}</p>
 
-        {/* Buttons */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -79,7 +71,166 @@ function ConfirmModal({ open, onClose, onConfirm, title, message, confirmLabel =
 }
 
 // ─────────────────────────────────────────────────────────
-//  Status badge
+//  Full Member Details Modal
+// ─────────────────────────────────────────────────────────
+function MemberDetailsModal({ member, onClose }) {
+  if (!member) return null;
+
+  let educationList = [];
+  if (Array.isArray(member.education)) {
+    educationList = member.education;
+  } else if (typeof member.education === 'string') {
+    try { educationList = JSON.parse(member.education); } catch { educationList = []; }
+  }
+  if (educationList.length === 0 && (member.university || member.degree || member.major)) {
+    educationList = [{ university: member.university, degree: member.degree, major: member.major }];
+  }
+
+  const initials = `${member.first_name?.[0] ?? ''}${member.last_name?.[0] ?? ''}`.toUpperCase();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+        
+        {/* Modal Header */}
+        <div className="px-8 py-6 bg-slate-900 text-white flex items-center justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center font-black text-xl text-teal-300 shrink-0 overflow-hidden">
+              {member.avatar_url ? (
+                <img src={member.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span>{initials}</span>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl font-black text-white">
+                  {member.first_name} {member.last_name}
+                </h2>
+                {member.nickname && (
+                  <span className="text-xs font-bold text-teal-300">"{member.nickname}"</span>
+                )}
+                {member.is_executive === 1 && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase">
+                    Executive
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">{member.email}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition-all relative z-10"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-8 space-y-6 overflow-y-auto flex-1 text-xs">
+          
+          {/* Quick Badges */}
+          <div className="flex items-center gap-2 flex-wrap pb-4 border-b border-slate-100">
+            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+              Tier: {member.tier || 'Professional'}
+            </span>
+            <span className={`px-3 py-1 rounded-full font-bold uppercase tracking-wider text-[10px] ${
+              member.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+            }`}>
+              Status: {member.status}
+            </span>
+            <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold uppercase tracking-wider text-[10px] border border-blue-200">
+              SEG: {member.seg_status || 'non-member'}
+            </span>
+            {member.tgs_member ? (
+              <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-700 font-bold uppercase tracking-wider text-[10px] border border-teal-200 flex items-center gap-1">
+                <Check className="w-3 h-3 text-teal-600" /> TGS Member
+              </span>
+            ) : (
+              <span className="px-3 py-1 rounded-full bg-slate-50 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                Not TGS Member
+              </span>
+            )}
+          </div>
+
+          {/* Personal & Home Address */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-teal-600" /> Personal &amp; Home Address
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+              <div><span className="font-bold text-slate-500">Phone:</span> <span className="text-slate-800 font-semibold">{member.phone || '—'}</span></div>
+              <div><span className="font-bold text-slate-500">Joined:</span> <span className="text-slate-800 font-semibold">{member.joined_at ? new Date(member.joined_at).toLocaleDateString() : '—'}</span></div>
+              <div className="sm:col-span-2"><span className="font-bold text-slate-500">Home Street:</span> <span className="text-slate-800 font-semibold">{member.home_street || '—'}</span></div>
+              <div><span className="font-bold text-slate-500">City:</span> <span className="text-slate-800 font-semibold">{member.home_city || '—'}</span></div>
+              <div><span className="font-bold text-slate-500">State / ZIP:</span> <span className="text-slate-800 font-semibold">{[member.home_state, member.home_zip].filter(Boolean).join(' ') || '—'}</span></div>
+            </div>
+          </div>
+
+          {/* Company & Office Info */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
+              <Building className="w-3.5 h-3.5 text-teal-600" /> Company &amp; Professional Details
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+              <div><span className="font-bold text-slate-500">Company:</span> <span className="text-slate-800 font-semibold">{member.company_name || member.company || '—'}</span></div>
+              <div><span className="font-bold text-slate-500">Job Title:</span> <span className="text-slate-800 font-semibold">{member.job_title || '—'}</span></div>
+              <div><span className="font-bold text-slate-500">Board Position:</span> <span className="text-slate-800 font-semibold">{member.board_position || '—'}</span></div>
+              <div><span className="font-bold text-slate-500">Company Phone:</span> <span className="text-slate-800 font-semibold">{member.company_phone || '—'}</span></div>
+              <div className="sm:col-span-2"><span className="font-bold text-slate-500">Company Street:</span> <span className="text-slate-800 font-semibold">{member.company_street || '—'}</span></div>
+              <div><span className="font-bold text-slate-500">Company City:</span> <span className="text-slate-800 font-semibold">{member.company_city || '—'}</span></div>
+              <div><span className="font-bold text-slate-500">Company State / ZIP:</span> <span className="text-slate-800 font-semibold">{[member.company_state, member.company_zip].filter(Boolean).join(' ') || '—'}</span></div>
+            </div>
+          </div>
+
+          {/* Education Records */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
+              <GraduationCap className="w-3.5 h-3.5 text-teal-600" /> Education &amp; Academic Degrees ({educationList.length})
+            </h3>
+            <div className="space-y-2">
+              {educationList.length === 0 ? (
+                <p className="text-slate-400 p-3 bg-slate-50 rounded-xl">No degrees recorded.</p>
+              ) : (
+                educationList.map((edu, idx) => (
+                  <div key={idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <span className="font-black text-slate-900">{edu.degree || 'Degree'}</span>
+                      {edu.major && <span className="text-slate-600"> in {edu.major}</span>}
+                    </div>
+                    <div className="text-slate-500 font-semibold">{edu.university || 'University / College'}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Privacy & Policy */}
+          <div className="p-3 bg-teal-50/70 border border-teal-200/70 rounded-xl text-teal-800 font-medium">
+            <span className="font-bold">Privacy Policy Accepted:</span> {member.privacy_policy ? 'Yes' : 'No'}
+          </div>
+
+        </div>
+
+        {/* Modal Footer */}
+        <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+//  Status & Tier Badges
 // ─────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
   const cfg = {
@@ -96,9 +247,6 @@ function StatusBadge({ status }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-//  Tier badge
-// ─────────────────────────────────────────────────────────
 function TierBadge({ tier }) {
   const cfg = {
     corporate:    'bg-purple-100 text-purple-700',
@@ -113,9 +261,6 @@ function TierBadge({ tier }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-//  Action button
-// ─────────────────────────────────────────────────────────
 function ActionBtn({ onClick, disabled, title, children, variant = 'default' }) {
   const variants = {
     default: 'text-slate-400 hover:text-slate-900 hover:bg-slate-100',
@@ -137,7 +282,7 @@ function ActionBtn({ onClick, disabled, title, children, variant = 'default' }) 
 }
 
 // ─────────────────────────────────────────────────────────
-//  Main component
+//  Main AdminMembers Component
 // ─────────────────────────────────────────────────────────
 export default function AdminMembers() {
   const [members, setMembers]             = useState([]);
@@ -147,15 +292,14 @@ export default function AdminMembers() {
   const [search, setSearch]               = useState('');
   const [statusFilter, setStatusFilter]   = useState('');
   const [tierFilter, setTierFilter]       = useState('');
+  const [segFilter, setSegFilter]         = useState('');
   const [page, setPage]                   = useState(1);
-  const [error, setError]                 = useState('');
 
-  // ── Confirm modal state ──────────────────────────────
+  // ── Modals state ──────────────────────────────────────
+  const [selectedMemberDetails, setSelectedMemberDetails] = useState(null);
   const [modal, setModal] = useState({
     open: false, title: '', message: '', confirmLabel: '', variant: 'danger', onConfirm: null,
   });
-
-  // ── Password reset reveal state ──────────────────────
   const [pwModal, setPwModal] = useState({ open: false, name: '', password: '' });
   const [copied, setCopied] = useState(false);
 
@@ -165,26 +309,26 @@ export default function AdminMembers() {
   // ── Fetch ────────────────────────────────────────────
   const fetchMembers = useCallback(async () => {
     setLoading(true);
-    setError('');
     try {
       const params = new URLSearchParams({ page, limit: 10 });
       if (search)       params.set('search', search);
       if (statusFilter) params.set('status', statusFilter);
       if (tierFilter)   params.set('tier',   tierFilter);
+      if (segFilter)    params.set('seg_status', segFilter);
       const { data } = await api.get(`/members?${params}`);
       setMembers(data.data || []);
       setPagination(data.pagination || { page: 1, totalPages: 1, total: 0 });
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load members.');
+      gstToast.error(err.response?.data?.message || 'Failed to load members.');
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter, tierFilter]);
+  }, [page, search, statusFilter, tierFilter, segFilter]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
-  useEffect(() => { setPage(1); }, [search, statusFilter, tierFilter]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, tierFilter, segFilter]);
 
-  // ── Action helpers ───────────────────────────────────
+  // ── Actions ──────────────────────────────────────────
   const setMemberActing = (id, val) => setActing((a) => ({ ...a, [id]: val }));
 
   const updateStatus = async (id, status) => {
@@ -192,8 +336,12 @@ export default function AdminMembers() {
     try {
       await api.patch(`/members/${id}/status`, { status });
       setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
+      const labels = { active: 'approved', inactive: 'deactivated', pending: 'set to pending' };
+      const member = members.find(m => m.id === id);
+      const name   = member ? `${member.first_name} ${member.last_name}` : 'Member';
+      gstToast.success(`${name} has been ${labels[status] ?? status}.`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Action failed.');
+      gstToast.error(err.response?.data?.message || 'Action failed.');
     } finally {
       setMemberActing(id, false);
     }
@@ -201,13 +349,20 @@ export default function AdminMembers() {
 
   const toggleExecutive = async (id, isExecutive) => {
     setMemberActing(id, true);
+    const member = members.find(m => m.id === id);
+    const name   = member ? `${member.first_name} ${member.last_name}` : 'Member';
     try {
       await api.patch(`/members/${id}/executive`, { is_executive: isExecutive });
       setMembers((prev) =>
         prev.map((m) => (m.id === id ? { ...m, is_executive: isExecutive ? 1 : 0 } : m))
       );
+      if (isExecutive) {
+        gstToast.success(`${name} has been promoted to Executive Member.`);
+      } else {
+        gstToast.warning(`Executive status removed from ${name}.`);
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Action failed.');
+      gstToast.error(err.response?.data?.message || 'Action failed.');
     } finally {
       setMemberActing(id, false);
     }
@@ -215,12 +370,15 @@ export default function AdminMembers() {
 
   const deleteMember = async (id) => {
     setMemberActing(id, true);
+    const member = members.find(m => m.id === id);
+    const name   = member ? `${member.first_name} ${member.last_name}` : 'Member';
     try {
       await api.delete(`/members/${id}`);
       setMembers((prev) => prev.filter((m) => m.id !== id));
       setPagination((p) => ({ ...p, total: p.total - 1 }));
+      gstToast.success(`${name} has been permanently deleted.`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Delete failed.');
+      gstToast.error(err.response?.data?.message || 'Delete failed.');
     } finally {
       setMemberActing(id, false);
     }
@@ -231,14 +389,14 @@ export default function AdminMembers() {
     try {
       const { data } = await api.patch(`/members/${id}/reset-password`);
       setPwModal({ open: true, name, password: data.data.newPassword });
+      gstToast.success(`Password reset for ${name}.`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Password reset failed.');
+      gstToast.error(err.response?.data?.message || 'Password reset failed.');
     } finally {
       setMemberActing(id, false);
     }
   };
 
-  // ── Confirm wrappers (open modal, execute on confirm) ─
   const confirmApprove = (m) =>
     showConfirm({
       title:        'Approve Membership',
@@ -296,7 +454,7 @@ export default function AdminMembers() {
   const confirmResetPassword = (m) =>
     showConfirm({
       title:        'Reset Password',
-      message:      `Reset ${m.first_name} ${m.last_name}'s password to the default formula (GST@YEAR+Name)? They will need to use the new password on their next login.`,
+      message:      `Reset ${m.first_name} ${m.last_name}'s password to default?`,
       confirmLabel: 'Reset Password',
       variant:      'warning',
       onConfirm:    () => resetPassword(m.id, `${m.first_name} ${m.last_name}`),
@@ -324,11 +482,19 @@ export default function AdminMembers() {
         variant={modal.variant}
       />
 
-      {/* Password Reset Success Modal */}
+      {/* Member Full Details Modal */}
+      {selectedMemberDetails && (
+        <MemberDetailsModal
+          member={selectedMemberDetails}
+          onClose={() => setSelectedMemberDetails(null)}
+        />
+      )}
+
+      {/* Password Reset Modal */}
       {pwModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setPwModal({ open: false, name: '', password: '' })} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
             <button
               onClick={() => setPwModal({ open: false, name: '', password: '' })}
               className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all"
@@ -341,7 +507,7 @@ export default function AdminMembers() {
             </div>
             <h3 className="text-base font-black text-slate-900 mb-1">Password Reset</h3>
             <p className="text-sm text-slate-500 mb-5">
-              The password for <strong>{pwModal.name}</strong> has been reset to the default. Share this with the member securely.
+              The password for <strong>{pwModal.name}</strong> has been reset to default:
             </p>
 
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-5">
@@ -360,10 +526,6 @@ export default function AdminMembers() {
               <p className="text-xs text-teal-600 font-bold text-center mb-3">✓ Copied to clipboard!</p>
             )}
 
-            <p className="text-[10px] text-slate-400 font-medium leading-relaxed mb-4">
-              Formula: <code className="font-mono">GST@&lt;YEAR&gt;&lt;FIRST3CHARS&gt;</code>. This password is not stored anywhere — share it with the member directly.
-            </p>
-
             <button
               onClick={() => setPwModal({ open: false, name: '', password: '' })}
               className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-700 transition-all"
@@ -374,12 +536,11 @@ export default function AdminMembers() {
         </div>
       )}
 
-      <main className="flex-1 min-w-0 flex flex-col">
-
+      <main className="flex-1 min-w-0 flex flex-col pb-12">
         {/* Header */}
         <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4 text-teal-600" />
             <span className="mx-2">/</span>
             <span className="text-slate-900">Member Directory</span>
           </div>
@@ -394,73 +555,79 @@ export default function AdminMembers() {
         </header>
 
         <div className="p-8 space-y-6 animate-fade-in">
-
-          {/* Title + filters */}
+          
+          {/* Title + Filters */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">Manage Members</h1>
-              <p className="text-sm text-slate-400 mt-1">
-                {pagination.total} total ·{' '}
+              <p className="text-xs text-slate-400 mt-1">
+                {pagination.total} total members ·{' '}
                 {pendingCount > 0 && (
                   <span className="text-amber-600 font-bold">{pendingCount} pending review</span>
                 )}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative group">
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="relative group min-w-[220px]">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search name, email, company…"
-                  className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all w-60"
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
                 />
               </div>
+
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="py-2 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                className="py-2 pl-3 pr-7 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
               >
-                <option value="">All statuses</option>
+                <option value="">Status: All</option>
                 <option value="pending">Pending</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
+
               <select
                 value={tierFilter}
                 onChange={(e) => setTierFilter(e.target.value)}
-                className="py-2 pl-3 pr-8 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                className="py-2 pl-3 pr-7 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
               >
-                <option value="">All tiers</option>
+                <option value="">Tier: All</option>
                 <option value="student">Student</option>
                 <option value="professional">Professional</option>
                 <option value="corporate">Corporate</option>
               </select>
+
+              <select
+                value={segFilter}
+                onChange={(e) => setSegFilter(e.target.value)}
+                className="py-2 pl-3 pr-7 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+              >
+                <option value="">SEG: All</option>
+                <option value="active">SEG Active</option>
+                <option value="associate">SEG Associate</option>
+                <option value="emeritus">SEG Emeritus</option>
+                <option value="student">SEG Student</option>
+                <option value="non-member">SEG Non-Member</option>
+              </select>
             </div>
           </div>
 
-          {/* Error banner */}
-          {error && (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700 font-medium flex items-center justify-between">
-              <span>{error}</span>
-              <button onClick={() => setError('')} className="ml-4 text-rose-400 hover:text-rose-700">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Table */}
+          {/* Members Table */}
           <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/60 border-b border-slate-100">
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Member</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Company</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tier</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Joined</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                    <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  <tr className="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    <th className="px-6 py-4">Member Name &amp; Contact</th>
+                    <th className="px-6 py-4">Company &amp; Position</th>
+                    <th className="px-6 py-4">SEG Status</th>
+                    <th className="px-6 py-4">Tier</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -473,89 +640,104 @@ export default function AdminMembers() {
                   )}
                   {!loading && members.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-16 text-center text-slate-400 text-sm">
-                        No members found.
+                      <td colSpan={6} className="py-16 text-center text-slate-400 text-xs">
+                        No members found matching your search.
                       </td>
                     </tr>
                   )}
                   {!loading && members.map((m) => {
                     const isActing = !!acting[m.id];
                     const initials = `${m.first_name?.[0] ?? ''}${m.last_name?.[0] ?? ''}`.toUpperCase();
-                    const joined   = m.joined_at
-                      ? new Date(m.joined_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                      : '—';
 
                     return (
                       <tr key={m.id} className="hover:bg-slate-50/70 transition-colors group">
-                        <td className="px-8 py-4">
+                        <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 text-sm group-hover:bg-teal-500 group-hover:text-white transition-all duration-200 flex-shrink-0">
-                              {initials}
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-xs group-hover:bg-teal-500 group-hover:text-white transition-all shrink-0 overflow-hidden">
+                              {m.avatar_url ? (
+                                <img src={m.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <span>{initials}</span>
+                              )}
                             </div>
                             <div>
                               <div className="flex items-center gap-1.5">
-                                <span className="text-sm font-bold text-slate-900">{m.first_name} {m.last_name}</span>
+                                <span className="font-bold text-slate-900 text-sm">{m.first_name} {m.last_name}</span>
+                                {m.nickname && <span className="text-slate-400 text-[11px]">({m.nickname})</span>}
                                 {m.is_executive === 1 && (
-                                  <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" title="Executive" />
+                                  <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" title="Executive Member" />
                                 )}
                               </div>
-                              <div className="text-xs text-slate-400">{m.email}</div>
+                              <div className="text-[11px] text-slate-400">{m.email}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-slate-600">
-                          {m.company || <span className="text-slate-300">—</span>}
+
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-slate-800">{m.company_name || m.company || '—'}</div>
+                          <div className="text-[10px] text-slate-400">{m.job_title || m.board_position || '—'}</div>
                         </td>
-                        <td className="px-6 py-4"><TierBadge tier={m.tier} /></td>
-                        <td className="px-6 py-4 text-sm text-slate-500 font-medium">{joined}</td>
-                        <td className="px-6 py-4"><StatusBadge status={m.status} /></td>
-                        <td className="px-8 py-4 text-right">
+
+                        <td className="px-6 py-4">
+                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-600">
+                            {m.seg_status || 'non-member'}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <TierBadge tier={m.tier} />
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <StatusBadge status={m.status} />
+                        </td>
+
+                        <td className="px-6 py-4 text-right">
                           <div className="flex justify-end items-center gap-1">
-                            {isActing
-                              ? <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                              : (
-                                <>
-                                  {/* Approve */}
-                                  {m.status !== 'active' && (
-                                    <ActionBtn variant="success" title="Approve membership" onClick={() => confirmApprove(m)}>
-                                      <CheckCircle2 className="w-4 h-4" />
-                                    </ActionBtn>
-                                  )}
-                                  {/* Deactivate */}
-                                  {m.status === 'active' && (
-                                    <ActionBtn variant="danger" title="Deactivate membership" onClick={() => confirmDeactivate(m)}>
-                                      <XCircle className="w-4 h-4" />
-                                    </ActionBtn>
-                                  )}
-                                  {/* Set pending */}
-                                  {m.status === 'active' && (
-                                    <ActionBtn title="Reset to pending" onClick={() => confirmSetPending(m)}>
-                                      <AlertCircle className="w-4 h-4" />
-                                    </ActionBtn>
-                                  )}
-                                  {/* Executive toggle */}
-                                  {m.status === 'active' && (m.is_executive
-                                    ? (
-                                      <ActionBtn variant="gold" title="Remove executive status" onClick={() => confirmRemoveExecutive(m)}>
-                                        <StarOff className="w-4 h-4" />
-                                      </ActionBtn>
-                                    ) : (
-                                      <ActionBtn variant="gold" title="Make executive member" onClick={() => confirmMakeExecutive(m)}>
-                                        <Star className="w-4 h-4" />
-                                      </ActionBtn>
-                                    )
-                                  )}
-                                  {/* Reset Password */}
-                                  <ActionBtn variant="warning" title="Reset password to default" onClick={() => confirmResetPassword(m)}>
-                                    <KeyRound className="w-4 h-4" />
+                            {/* View Full Details */}
+                            <ActionBtn
+                              title="View full member profile"
+                              onClick={() => setSelectedMemberDetails(m)}
+                            >
+                              <Eye className="w-4 h-4 text-teal-600" />
+                            </ActionBtn>
+
+                            {isActing ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                            ) : (
+                              <>
+                                {m.status !== 'active' && (
+                                  <ActionBtn variant="success" title="Approve membership" onClick={() => confirmApprove(m)}>
+                                    <CheckCircle2 className="w-4 h-4" />
                                   </ActionBtn>
-                                  {/* Delete */}
-                                  <ActionBtn variant="danger" title="Delete member" onClick={() => confirmDelete(m)}>
-                                    <Trash2 className="w-4 h-4" />
+                                )}
+                                {m.status === 'active' && (
+                                  <ActionBtn variant="danger" title="Deactivate membership" onClick={() => confirmDeactivate(m)}>
+                                    <XCircle className="w-4 h-4" />
                                   </ActionBtn>
-                                </>
-                              )
-                            }
+                                )}
+                                {m.status === 'active' && (
+                                  <ActionBtn title="Reset to pending" onClick={() => confirmSetPending(m)}>
+                                    <AlertCircle className="w-4 h-4" />
+                                  </ActionBtn>
+                                )}
+                                {m.status === 'active' && (m.is_executive ? (
+                                  <ActionBtn variant="gold" title="Remove executive status" onClick={() => confirmRemoveExecutive(m)}>
+                                    <StarOff className="w-4 h-4" />
+                                  </ActionBtn>
+                                ) : (
+                                  <ActionBtn variant="gold" title="Promote to executive" onClick={() => confirmMakeExecutive(m)}>
+                                    <Star className="w-4 h-4" />
+                                  </ActionBtn>
+                                ))}
+                                <ActionBtn variant="warning" title="Reset password" onClick={() => confirmResetPassword(m)}>
+                                  <KeyRound className="w-4 h-4" />
+                                </ActionBtn>
+                                <ActionBtn variant="danger" title="Delete member" onClick={() => confirmDelete(m)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </ActionBtn>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -565,12 +747,11 @@ export default function AdminMembers() {
               </table>
             </div>
 
-            {/* Pagination */}
+            {/* Pagination Bar */}
             {pagination.totalPages > 1 && (
-              <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                 <p className="text-xs text-slate-400 font-medium">
-                  Showing <span className="text-slate-900 font-bold">{members.length}</span> of{' '}
-                  <span className="text-slate-900 font-bold">{pagination.total}</span> members
+                  Showing <span className="font-bold text-slate-800">{members.length}</span> of <span className="font-bold text-slate-800">{pagination.total}</span> members
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -593,31 +774,6 @@ export default function AdminMembers() {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Footer stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-teal-600 rounded-2xl p-5 text-white flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-teal-200 font-bold uppercase tracking-widest mb-1">Active</p>
-                <p className="text-2xl font-black">{members.filter((m) => m.status === 'active').length}</p>
-              </div>
-              <CheckCircle2 className="w-8 h-8 text-teal-300" />
-            </div>
-            <div className="bg-amber-500 rounded-2xl p-5 text-white flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-amber-200 font-bold uppercase tracking-widest mb-1">Pending</p>
-                <p className="text-2xl font-black">{members.filter((m) => m.status === 'pending').length}</p>
-              </div>
-              <AlertCircle className="w-8 h-8 text-amber-300" />
-            </div>
-            <div className="bg-slate-800 rounded-2xl p-5 text-white flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Executives</p>
-                <p className="text-2xl font-black">{members.filter((m) => m.is_executive).length}</p>
-              </div>
-              <Star className="w-8 h-8 text-amber-400 fill-amber-400" />
-            </div>
           </div>
 
         </div>

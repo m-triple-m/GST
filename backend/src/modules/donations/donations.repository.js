@@ -14,9 +14,10 @@ const createDonation = async (data, userId) => {
 };
 
 const listDonations = async ({ limit, offset }) => {
-  const [rows] = await db.execute(
-    'SELECT * FROM donations ORDER BY donated_at DESC LIMIT ? OFFSET ?',
-    [limit, offset]
+  const safeLimit = Math.max(1, parseInt(limit, 10) || 20);
+  const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
+  const [rows] = await db.query(
+    `SELECT * FROM donations ORDER BY donated_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`
   );
   return rows;
 };

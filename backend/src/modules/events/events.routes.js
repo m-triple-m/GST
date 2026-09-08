@@ -31,5 +31,7 @@ router.put('/:id', verifyToken, requireRole('admin', 'executive'), ctrl.updateEv
 router.delete('/:id', verifyToken, requireRole('admin'), ctrl.deleteEvent);
 // GET    /api/events/:id/registrations
 router.get('/:id/registrations', verifyToken, requireRole('admin', 'executive'), ctrl.getEventRegistrations);
+// PATCH  /api/events/registrations/:regId/status
+router.patch('/registrations/:regId/status', verifyToken, requireRole('admin', 'executive'), ctrl.updateRegistrationStatus);
 
 module.exports = router;

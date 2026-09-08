@@ -37,7 +37,8 @@ const updateEvent = async (req, res, next) => {
 
 const deleteEvent = async (req, res, next) => {
   try {
-    await service.deleteEvent(Number(req.params.id));
+    const password = req.body?.password || req.query?.password;
+    await service.deleteEvent(Number(req.params.id), req.user.id, password);
     sendSuccess(res, 200, 'Event deleted');
   } catch (err) { next(err); }
 };
@@ -58,7 +59,18 @@ const registerForEvent = async (req, res, next) => {
 const getEventRegistrations = async (req, res, next) => {
   try {
     const data = await service.getEventRegistrations(Number(req.params.id));
-    sendSuccess(res, 200, 'Event registrations', data);
+    sendSuccess(res, 200, 'Event registrations and analytics', data);
+  } catch (err) { next(err); }
+};
+
+const updateRegistrationStatus = async (req, res, next) => {
+  try {
+    const data = await service.updateRegistrationPaymentStatus(
+      Number(req.params.regId),
+      req.body.payment_status,
+      req.body.payment_method
+    );
+    sendSuccess(res, 200, 'Registration status updated', data);
   } catch (err) { next(err); }
 };
 
@@ -80,5 +92,6 @@ const uploadResource = (req, res, next) => {
 
 module.exports = {
   listEvents, getEventById, createEvent, updateEvent, deleteEvent,
-  registerForEvent, getEventRegistrations, uploadImage, uploadResource
+  registerForEvent, getEventRegistrations, updateRegistrationStatus,
+  uploadImage, uploadResource
 };

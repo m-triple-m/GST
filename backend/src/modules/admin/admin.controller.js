@@ -47,4 +47,18 @@ const verifyOwnPassword = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getStats, getAuditLog, getAdminAccounts, addAdminAccount, verifyOwnPassword };
+const getRevenueAnalytics = async (req, res, next) => {
+  try {
+    const data = await service.getRevenueAnalytics(req.query);
+    sendSuccess(res, 200, 'Revenue analytics data', data);
+  } catch (err) { next(err); }
+};
+
+module.exports = {
+  getStats,
+  getAuditLog,
+  getAdminAccounts,
+  addAdminAccount,
+  verifyOwnPassword,
+  getRevenueAnalytics,
+};

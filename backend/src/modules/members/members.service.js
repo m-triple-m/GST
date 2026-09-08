@@ -45,6 +45,11 @@ const getMyProfile = async (userId) => {
 };
 
 const updateMyProfile = async (userId, data) => {
+  if (data.education && Array.isArray(data.education) && data.education.length > 0) {
+    if (!data.university) data.university = data.education[0].university || '';
+    if (!data.degree) data.degree = data.education[0].degree || '';
+    if (!data.major) data.major = data.education[0].major || '';
+  }
   await repo.updateMemberProfile(userId, data);
   return repo.getMemberByUserId(userId);
 };
@@ -79,6 +84,12 @@ const submitApplication = async (body) => {
     userId = await authRepo.createUser(body.email, hash, 'member');
     // Store the default password temporarily in the response (plain text, for first login)
     body._defaultPassword = defaultPassword;
+  }
+
+  if (body.education && Array.isArray(body.education) && body.education.length > 0) {
+    if (!body.university) body.university = body.education[0].university || '';
+    if (!body.degree) body.degree = body.education[0].degree || '';
+    if (!body.major) body.major = body.education[0].major || '';
   }
 
   await repo.createMemberApplication({ ...body, userId });

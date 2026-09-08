@@ -21,6 +21,17 @@ const listEnquiries = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const updateEnquiryStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    if (!status || !['new', 'in_review', 'approved', 'declined'].includes(status)) {
+      return next(require('../../utils/ApiError').badRequest('Invalid status'));
+    }
+    await service.updateEnquiryStatus(Number(req.params.id), status);
+    sendSuccess(res, 200, 'Sponsor enquiry status updated');
+  } catch (err) { next(err); }
+};
+
 // ── Sponsors CRUD ─────────────────────────────────────────────────────────────
 
 /** Public — only active sponsors */
@@ -71,4 +82,11 @@ const uploadLogo = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { submitEnquiry, listEnquiries, listSponsors, listAllSponsors, createSponsor, updateSponsor, deleteSponsor, uploadLogo };
+const reorderSponsors = async (req, res, next) => {
+  try {
+    await service.reorderSponsors(req.body.items);
+    sendSuccess(res, 200, 'Sponsor order saved');
+  } catch (err) { next(err); }
+};
+
+module.exports = { submitEnquiry, listEnquiries, updateEnquiryStatus, listSponsors, listAllSponsors, createSponsor, updateSponsor, deleteSponsor, uploadLogo, reorderSponsors };
