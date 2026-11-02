@@ -7,10 +7,14 @@ import {
   Mail, Tag, CreditCard, Banknote,
   TrendingUp, BarChart3, Filter, ArrowUpRight,
   ExternalLink, Layers, RefreshCw, Eye, X, CheckCircle,
-  Building2, Phone, Sparkles
+  Building2, Phone, Sparkles,
+  Clock3, ChevronLeft, ChevronRight, CalendarDays, Trash2,
+  ShieldCheck, UserCheck, RotateCcw, SlidersHorizontal
 } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import { gstToast } from '../../utils/toast';
+import PaymentConfirmationModal from '../../components/modals/PaymentConfirmationModal';
 
 const CONTACT_SUBJECTS = {
   membership: 'Membership Inquiry',
@@ -30,25 +34,101 @@ const SPONSOR_TIER_STYLES = {
 
 const SPONSOR_STATUS_STYLES = {
   new:       { label: 'New',       bg: 'bg-rose-100 text-rose-700' },
+  read:      { label: 'Read',      bg: 'bg-slate-100 text-slate-600' },
   in_review: { label: 'In Review', bg: 'bg-amber-100 text-amber-700' },
   approved:  { label: 'Approved',  bg: 'bg-emerald-100 text-emerald-700' },
   declined:  { label: 'Declined',  bg: 'bg-slate-100 text-slate-500' },
 };
 
+// ── Action label & icon mappings for Activity Log ─────────────────
+const ACTION_DISPLAY = {
+  MEMBER_STATUS_CHANGE:           { label: 'Member Status Changed',    color: 'text-teal-600',   bg: 'bg-teal-50 border-teal-100' },
+  MEMBER_RENEWED:                 { label: 'Membership Renewed',       color: 'text-blue-600',   bg: 'bg-blue-50 border-blue-100' },
+  MEMBER_EXPIRATION_UPDATED:      { label: 'Expiration Updated',       color: 'text-amber-600',  bg: 'bg-amber-50 border-amber-100' },
+  MEMBER_EXECUTIVE_TOGGLED:       { label: 'Executive Status',         color: 'text-purple-600', bg: 'bg-purple-50 border-purple-100' },
+  MEMBER_PASSWORD_RESET:          { label: 'Password Reset',           color: 'text-orange-600', bg: 'bg-orange-50 border-orange-100' },
+  MEMBER_PROFILE_UPDATED:         { label: 'Profile Updated',          color: 'text-teal-600',   bg: 'bg-teal-50 border-teal-100' },
+  MEMBER_DELETED:                 { label: 'Member Deleted',           color: 'text-rose-600',   bg: 'bg-rose-50 border-rose-100' },
+  EVENT_CREATED:                  { label: 'Event Created',            color: 'text-emerald-700',bg: 'bg-emerald-50 border-emerald-100' },
+  EVENT_UPDATED:                  { label: 'Event Updated',            color: 'text-teal-600',   bg: 'bg-teal-50 border-teal-100' },
+  EVENT_DELETED:                  { label: 'Event Deleted',            color: 'text-rose-600',   bg: 'bg-rose-50 border-rose-100' },
+  PAYMENT_STATUS_UPDATED:         { label: 'Payment Confirmed',        color: 'text-emerald-600',bg: 'bg-emerald-50 border-emerald-100' },
+  SPONSOR_CREATED:                { label: 'Sponsor Added',            color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-100' },
+  SPONSOR_UPDATED:                { label: 'Sponsor Updated',          color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-100' },
+  SPONSOR_DELETED:                { label: 'Sponsor Removed',          color: 'text-rose-600',   bg: 'bg-rose-50 border-rose-100' },
+  SPONSOR_REORDERED:              { label: 'Sponsors Reordered',       color: 'text-slate-600',  bg: 'bg-slate-100 border-slate-200' },
+  SPONSOR_ENQUIRY_STATUS_UPDATED: { label: 'Enquiry Status Updated',   color: 'text-amber-600',  bg: 'bg-amber-50 border-amber-100' },
+  ADMIN_ACCOUNT_CREATED:          { label: 'Admin Account Created',    color: 'text-purple-600', bg: 'bg-purple-50 border-purple-100' },
+};
+
+function getActionDisplay(action) {
+  return ACTION_DISPLAY[action] || { label: action.replace(/_/g, ' '), color: 'text-slate-600', bg: 'bg-slate-100 border-slate-200' };
+}
+
+function buildActivityDescription(log) {
+  const meta = typeof log.meta === 'string' ? JSON.parse(log.meta || '{}') : (log.meta || {});
+  switch (log.action) {
+    case 'MEMBER_STATUS_CHANGE':
+      return `Changed member #${meta.member_id || log.target?.replace('member:', '')} status to "${meta.new_status || '?'}"${meta.expires_at ? ` — expires ${meta.expires_at}` : ''}`;
+    case 'MEMBER_RENEWED':
+      return `Renewed membership for member #${meta.member_id || log.target?.replace('member:', '')} (${meta.months || 12} months)`;
+    case 'MEMBER_EXPIRATION_UPDATED':
+      return `Updated expiry for member #${meta.member_id || log.target?.replace('member:', '')} → ${meta.expires_at || '?'}`;
+    case 'MEMBER_EXECUTIVE_TOGGLED':
+      return meta.is_executive ? `Promoted member #${meta.member_id || log.target?.replace('member:', '')} to Executive` : `Removed Executive status from member #${meta.member_id || log.target?.replace('member:', '')}`;
+    case 'MEMBER_PASSWORD_RESET':
+      return `Reset password for member #${meta.member_id || log.target?.replace('member:', '')}`;
+    case 'MEMBER_PROFILE_UPDATED':
+      return `Updated profile for member #${meta.member_id || log.target?.replace('member:', '')}${meta.name ? ` (${meta.name})` : ''}`;
+    case 'MEMBER_DELETED':
+      return `Permanently deleted member #${meta.member_id || log.target?.replace('member:', '')}`;
+    case 'EVENT_CREATED':
+      return `Created event "${meta.title || '?'}"${meta.event_date ? ` — ${meta.event_date}` : ''}`;
+    case 'EVENT_UPDATED':
+      return `Updated event #${meta.event_id || log.target?.replace('event:', '')}${meta.title ? ` — "${meta.title}"` : ''}`;
+    case 'EVENT_DELETED':
+      return `Deleted event #${meta.event_id || log.target?.replace('event:', '')}`;
+    case 'PAYMENT_STATUS_UPDATED':
+      return `Marked registration #${meta.registration_id || log.target?.replace('registration:', '')} as "${meta.payment_status || '?'}"${meta.payment_method ? ` via ${meta.payment_method.replace('_', ' ')}` : ''}`;
+    case 'SPONSOR_CREATED':
+      return `Added sponsor "${meta.name || '?'}" (${meta.tier || 'bronze'} tier)`;
+    case 'SPONSOR_UPDATED':
+      return `Updated sponsor #${meta.sponsor_id || log.target?.replace('sponsor:', '')}${meta.name ? ` — "${meta.name}"` : ''}`;
+    case 'SPONSOR_DELETED':
+      return `Removed sponsor #${meta.sponsor_id || log.target?.replace('sponsor:', '')}`;
+    case 'SPONSOR_ENQUIRY_STATUS_UPDATED':
+      return `Updated sponsor enquiry #${meta.enquiry_id || log.target?.replace('sponsor_enquiry:', '')} → "${meta.status || '?'}"`;
+    case 'SPONSOR_REORDERED':
+      return 'Reordered sponsor display list';
+    case 'ADMIN_ACCOUNT_CREATED':
+      return `Created admin account for ${meta.email || '?'} (${meta.role || 'admin'})`;
+    default:
+      return log.action.replace(/_/g, ' ').toLowerCase();
+  }
+}
+
 export default function AdminDashboard() {
   const { user } = useAuth();
   const [statsData, setStatsData] = useState(null);
   const [pendingApps, setPendingApps] = useState([]);
-  const [recentLog, setRecentLog] = useState([]);
   const [contactInquiries, setContactInquiries] = useState([]);
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [markingInquiryId, setMarkingInquiryId] = useState(null);
   const [sponsorEnquiries, setSponsorEnquiries] = useState([]);
   const [selectedSponsorEnquiry, setSelectedSponsorEnquiry] = useState(null);
   const [updatingSponsorStatusId, setUpdatingSponsorStatusId] = useState(null);
+  const [selectedPaymentReg, setSelectedPaymentReg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [actionLoading, setActionLoading] = useState(null); // id of member being actioned
+
+  // ── Activity Log state ───────────────────────────────────
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityPagination, setActivityPagination] = useState(null);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityFilter, setActivityFilter] = useState('');
+  const ACTIVITY_LIMIT = 15;
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -105,13 +185,6 @@ export default function AdminDashboard() {
     }
 
     try {
-      const { data: auditRes } = await api.get('/admin/audit?limit=5');
-      setRecentLog(auditRes.data || []);
-    } catch (err) {
-      console.error('Error fetching audit log:', err.response?.data || err.message);
-    }
-
-    try {
       const { data: contactRes } = await api.get('/contact/inquiries?limit=5');
       setContactInquiries(contactRes.data || []);
     } catch (err) {
@@ -128,6 +201,24 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
+  const fetchActivityLogs = useCallback(async (page = 1, filter = '') => {
+    setActivityLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page,
+        limit: ACTIVITY_LIMIT,
+      });
+      if (filter) params.append('action_filter', filter);
+      const { data: res } = await api.get(`/admin/audit?${params}`);
+      setActivityLogs(res.data || []);
+      setActivityPagination(res.pagination || null);
+    } catch (err) {
+      console.error('Error fetching activity logs:', err.response?.data || err.message);
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [ACTIVITY_LIMIT]);
+
   useEffect(() => { 
     fetchDashboardData(); 
   }, []);
@@ -135,6 +226,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchRevenueData(revenueTimeframe);
   }, [revenueTimeframe, fetchRevenueData]);
+
+  useEffect(() => {
+    fetchActivityLogs(activityPage, activityFilter);
+  }, [activityPage, activityFilter, fetchActivityLogs]);
 
   const handleStatusChange = async (id, status) => {
     setActionLoading(id);
@@ -145,6 +240,7 @@ export default function AdminDashboard() {
       // Refresh stats to reflect updated pending count
       const { data: statsRes } = await api.get('/admin/stats');
       setStatsData(statsRes.data);
+      fetchActivityLogs(activityPage, activityFilter);
     } catch (err) {
       console.error(`Failed to ${status} member:`, err);
     } finally {
@@ -180,10 +276,46 @@ export default function AdminDashboard() {
       }
       const { data: statsRes } = await api.get('/admin/stats');
       setStatsData(statsRes.data);
+      fetchActivityLogs(activityPage, activityFilter);
     } catch (err) {
       console.error('Failed to update sponsor status:', err);
     } finally {
       setUpdatingSponsorStatusId(null);
+    }
+  };
+
+  const handleOpenSponsorEnquiry = async (enquiry) => {
+    setSelectedSponsorEnquiry(enquiry);
+    if (enquiry.status === 'new') {
+      // Optimistically update to read
+      setSponsorEnquiries(prev => prev.map(item => item.id === enquiry.id ? { ...item, status: 'read' } : item));
+      setSelectedSponsorEnquiry(prev => prev && prev.id === enquiry.id ? { ...prev, status: 'read' } : prev);
+      setStatsData(prev => prev ? { ...prev, new_sponsor_enquiries: Math.max(0, (prev.new_sponsor_enquiries || 1) - 1) } : prev);
+
+      try {
+        await api.patch(`/sponsors/enquiries/${enquiry.id}/status`, { status: 'read' });
+        fetchActivityLogs(activityPage, activityFilter);
+      } catch (err) {
+        console.error('Failed to update sponsor enquiry status to read:', err);
+      }
+    }
+  };
+
+  const handleConfirmAttendeePayment = async (regId, newStatus, paymentMethod, note) => {
+    try {
+      const payload = { payment_status: newStatus };
+      if (paymentMethod) payload.payment_method = paymentMethod;
+      if (note) payload.notes = note;
+      await api.patch(`/events/registrations/${regId}/status`, payload);
+      const methodLabel = paymentMethod === 'at_door' ? 'Cash' : (paymentMethod === 'card' ? 'Card' : (paymentMethod === 'comp' ? 'Complimentary' : paymentMethod));
+      gstToast.success(`Payment confirmed (${methodLabel}).`);
+      await fetchRevenueData(revenueTimeframe);
+      await fetchDashboardData();
+      fetchActivityLogs(activityPage, activityFilter);
+    } catch (err) {
+      console.error('Failed to confirm attendee payment:', err);
+      gstToast.error(err.response?.data?.message || 'Failed to update payment status.');
+      throw err;
     }
   };
 
@@ -247,24 +379,39 @@ export default function AdminDashboard() {
           {/* Stats Grid — Primary Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { label: 'Total Members',    value: statsData?.total_members || 0,           icon: Users,      color: 'text-teal-500',   bg: 'bg-teal-50',   badge: null },
-              { label: 'Active Events',    value: statsData?.active_events || 0,           icon: Calendar,   color: 'text-amber-500',  bg: 'bg-amber-50',  badge: null },
-              { label: 'Total Donations',  value: `$${statsData?.total_donations || 0}`,   icon: DollarSign, color: 'text-blue-500',   bg: 'bg-blue-50',   badge: null },
-              { label: 'Pending Apps',     value: statsData?.pending_applications ?? pendingApps.length, icon: UserPlus, color: 'text-rose-500', bg: 'bg-rose-50', badge: (statsData?.pending_applications || pendingApps.length) > 0 ? 'rose' : null },
-            ].map((stat) => (
-              <div key={stat.label} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 rounded-2xl ${stat.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                    <stat.icon className={`w-6 h-6 ${stat.color}`} />
+              { label: 'Total Members',    value: statsData?.total_members || 0,           icon: Users,      color: 'text-teal-500',   bg: 'bg-teal-50',   badge: null, link: '/admin/members' },
+              { label: 'Active Events',    value: statsData?.active_events || 0,           icon: Calendar,   color: 'text-amber-500',  bg: 'bg-amber-50',  badge: null, link: '/admin/events' },
+              { label: 'Total Donations',  value: `${statsData?.total_donations || 0}`,   icon: DollarSign, color: 'text-blue-500',   bg: 'bg-blue-50',   badge: null },
+              { label: 'Pending Apps',     value: statsData?.pending_applications ?? pendingApps.length, icon: UserPlus, color: 'text-rose-500', bg: 'bg-rose-50', badge: (statsData?.pending_applications || pendingApps.length) > 0 ? 'rose' : null, link: '/admin/members?status=pending' },
+            ].map((stat) => {
+              const cardInner = (
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all group h-full">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-2xl ${stat.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                      <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {stat.badge === 'rose' && (
+                        <span className="px-2 py-0.5 bg-rose-100 text-rose-600 rounded-full text-[10px] font-black uppercase tracking-wider">Action needed</span>
+                      )}
+                      {stat.link && (
+                        <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-teal-600 transition-colors" />
+                      )}
+                    </div>
                   </div>
-                  {stat.badge === 'rose' && (
-                    <span className="px-2 py-0.5 bg-rose-100 text-rose-600 rounded-full text-[10px] font-black uppercase tracking-wider">Action needed</span>
-                  )}
+                  <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{stat.label}</h3>
+                  <p className="text-3xl font-black text-slate-900">{loading ? '—' : stat.value}</p>
                 </div>
-                <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{stat.label}</h3>
-                <p className="text-3xl font-black text-slate-900">{loading ? '—' : stat.value}</p>
-              </div>
-            ))}
+              );
+
+              return stat.link ? (
+                <Link key={stat.label} to={stat.link} className="block transition-transform active:scale-[0.98]">
+                  {cardInner}
+                </Link>
+              ) : (
+                <div key={stat.label}>{cardInner}</div>
+              );
+            })}
           </div>
 
           {/* Stats Grid — Secondary Row */}
@@ -352,9 +499,9 @@ export default function AdminDashboard() {
               const totalRev = Number(summary.total_revenue || 0);
               const cashRev = Number(summary.cash_revenue || 0);
               const cardRev = Number(summary.card_revenue || 0);
-              const eventRev = Number(summary.event_revenue || 0);
-              const donationRev = Number(summary.donation_revenue || 0);
-              const pendingAmount = Number(summary.pending_amount || 0);
+              const eventRev = Number(summary.events_revenue || summary.event_revenue || 0);
+              const donationRev = Number(summary.donations_revenue || summary.donation_revenue || 0);
+              const pendingAmount = Number(summary.pending_amount || summary.pending_revenue || 0);
 
               const cashPct = totalRev > 0 ? Math.round((cashRev / totalRev) * 100) : 0;
               const cardPct = totalRev > 0 ? Math.round((cardRev / totalRev) * 100) : 0;
@@ -389,7 +536,7 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-700 pt-1">
                       <span>{cashPct}% of total revenue</span>
                       <span className="px-2 py-0.5 rounded-full bg-emerald-200/60 text-emerald-800 text-[10px] font-black">
-                        {summary.cash_transactions_count || 0} orders
+                        {summary.cash_transactions_count || summary.paid_bookings_count || 0} orders
                       </span>
                     </div>
                   </div>
@@ -406,7 +553,7 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between text-[11px] font-semibold text-blue-700 pt-1">
                       <span>{cardPct}% of total revenue</span>
                       <span className="px-2 py-0.5 rounded-full bg-blue-200/60 text-blue-800 text-[10px] font-black">
-                        {summary.card_transactions_count || 0} orders
+                        {summary.card_transactions_count || summary.completed_donations_count || 0} orders
                       </span>
                     </div>
                   </div>
@@ -432,7 +579,7 @@ export default function AdminDashboard() {
             {/* Monthly Trend Timeline Visual */}
             {(() => {
               const timeline = revenueData?.timeline || [];
-              const maxVal = Math.max(...timeline.map(t => Number(t.total || 0)), 50);
+              const maxVal = Math.max(...timeline.map(t => Number(t.total_revenue || t.total || 0)), 50);
 
               return (
                 <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-4">
@@ -462,9 +609,9 @@ export default function AdminDashboard() {
                     <div className="pt-4">
                       <div className="flex items-end justify-between h-36 gap-2 sm:gap-4 px-2">
                         {timeline.map((item, idx) => {
-                          const tot = Number(item.total || 0);
-                          const cash = Number(item.cash || 0);
-                          const card = Number(item.card || 0);
+                          const tot = Number(item.total_revenue || item.total || 0);
+                          const cash = Number(item.cash_revenue || item.cash || 0);
+                          const card = Number(item.card_revenue || item.card || 0);
                           const heightPct = Math.max((tot / maxVal) * 100, 4);
                           const cashPctOfBar = tot > 0 ? (cash / tot) * 100 : 0;
                           const cardPctOfBar = tot > 0 ? (card / tot) * 100 : 0;
@@ -517,7 +664,7 @@ export default function AdminDashboard() {
                     }`}
                   >
                     <Calendar className="w-3.5 h-3.5" />
-                    Revenue by Event ({revenueData?.events?.length || 0})
+                    Revenue by Event ({revenueData?.events_breakdown?.length || revenueData?.events?.length || 0})
                   </button>
 
                   <button
@@ -529,7 +676,7 @@ export default function AdminDashboard() {
                     }`}
                   >
                     <Users className="w-3.5 h-3.5" />
-                    Revenue by Member Tier ({revenueData?.members?.length || 0})
+                    Revenue by Member Tier ({revenueData?.member_tiers?.length || revenueData?.members?.length || 0})
                   </button>
 
                   <button
@@ -542,6 +689,21 @@ export default function AdminDashboard() {
                   >
                     <DollarSign className="w-3.5 h-3.5" />
                     Recent Transactions ({revenueData?.recent_transactions?.length || 0})
+                  </button>
+
+                  <button
+                    onClick={() => setRevenueTab('pending_payments')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      revenueTab === 'pending_payments'
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Banknote className="w-3.5 h-3.5 text-emerald-600" />
+                    Pending Attendee Payments ({revenueData?.pending_registrations?.length || 0})
+                    {(revenueData?.pending_registrations?.length || 0) > 0 && (
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -562,17 +724,17 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {(revenueData?.events || []).length === 0 ? (
+                      {(revenueData?.events_breakdown || revenueData?.events || []).length === 0 ? (
                         <tr>
                           <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
                             No event revenue recorded yet.
                           </td>
                         </tr>
                       ) : (
-                        (revenueData?.events || []).map((ev) => (
-                          <tr key={ev.id} className="hover:bg-slate-50/80 transition-colors">
+                        (revenueData?.events_breakdown || revenueData?.events || []).map((ev) => (
+                          <tr key={ev.event_id || ev.id} className="hover:bg-slate-50/80 transition-colors">
                             <td className="px-5 py-3.5">
-                              <div className="font-bold text-slate-900">{ev.title}</div>
+                              <div className="font-bold text-slate-900">{ev.event_title || ev.title}</div>
                               <span className={`inline-block mt-0.5 px-2 py-0.5 rounded text-[9px] font-black uppercase ${
                                 ev.status === 'past' ? 'bg-slate-100 text-slate-500' : 'bg-teal-50 text-teal-700'
                               }`}>
@@ -583,7 +745,7 @@ export default function AdminDashboard() {
                               {ev.event_date ? new Date(ev.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                             </td>
                             <td className="px-5 py-3.5 font-bold text-slate-700">
-                              {ev.paid_count || 0} tickets
+                              {ev.paid_orders || ev.paid_count || 0} tickets
                             </td>
                             <td className="px-5 py-3.5 text-emerald-700 font-bold">
                               ${Number(ev.cash_revenue || 0).toFixed(2)}
@@ -598,7 +760,7 @@ export default function AdminDashboard() {
                             </td>
                             <td className="px-5 py-3.5 text-right">
                               <Link
-                                to={`/admin/events/${ev.id}`}
+                                to={`/admin/events/${ev.event_id || ev.id}`}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold text-[11px] transition-all"
                               >
                                 Details <ArrowUpRight className="w-3.5 h-3.5" />
@@ -615,20 +777,21 @@ export default function AdminDashboard() {
               {/* Tab Content: Revenue By Member Tier */}
               {revenueTab === 'members' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {(revenueData?.members || []).length === 0 ? (
+                  {(revenueData?.member_tiers || revenueData?.members || []).length === 0 ? (
                     <div className="col-span-full py-8 text-center text-slate-400 text-xs">
                       No member tier revenue recorded yet.
                     </div>
                   ) : (
-                    (revenueData?.members || []).map((m, idx) => {
-                      const totalMemberRev = (revenueData?.members || []).reduce((acc, curr) => acc + Number(curr.total_revenue || 0), 0);
+                    (revenueData?.member_tiers || revenueData?.members || []).map((m, idx) => {
+                      const tierList = revenueData?.member_tiers || revenueData?.members || [];
+                      const totalMemberRev = tierList.reduce((acc, curr) => acc + Number(curr.total_revenue || 0), 0);
                       const pct = totalMemberRev > 0 ? Math.round((Number(m.total_revenue || 0) / totalMemberRev) * 100) : 0;
 
                       return (
                         <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider bg-white border border-slate-200 text-slate-800">
-                              {m.display_name}
+                              {m.tier || m.display_name || 'Unknown'}
                             </span>
                             <span className="text-[10px] font-bold text-slate-400">
                               {m.paid_count} order{m.paid_count !== 1 ? 's' : ''}
@@ -663,29 +826,30 @@ export default function AdminDashboard() {
                         <th className="px-5 py-3.5">Payment Method</th>
                         <th className="px-5 py-3.5">Amount</th>
                         <th className="px-5 py-3.5">Status</th>
-                        <th className="px-5 py-3.5 text-right">Date</th>
+                        <th className="px-5 py-3.5 text-right">Date / Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {(revenueData?.recent_transactions || []).length === 0 ? (
                         <tr>
                           <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
-                            No recent paid transactions found.
+                            No recent transactions found.
                           </td>
                         </tr>
                       ) : (
                         (revenueData?.recent_transactions || []).map((t, idx) => {
                           const isCash = t.payment_method === 'cash' || t.payment_method === 'at_door';
+                          const isPending = t.payment_status === 'pending';
                           return (
                             <tr key={t.id || idx} className="hover:bg-slate-50/80 transition-colors">
                               <td className="px-5 py-3.5">
-                                <div className="font-bold text-slate-900">{t.name || 'Anonymous'}</div>
-                                <div className="text-[11px] text-slate-400">{t.email || '—'}</div>
+                                <div className="font-bold text-slate-900">{t.attendee_name || t.name || 'Anonymous'}</div>
+                                <div className="text-[11px] text-slate-400">{t.attendee_email || t.email || '—'}</div>
                               </td>
                               <td className="px-5 py-3.5">
-                                {t.type === 'event_registration' ? (
+                                {t.type === 'event_registration' || t.type === 'event_ticket' ? (
                                   <div>
-                                    <span className="font-semibold text-slate-800">{t.event_title || 'Event Registration'}</span>
+                                    <span className="font-semibold text-slate-800">{t.source_title || t.event_title || 'Event Registration'}</span>
                                     <span className="block text-[10px] text-slate-400 font-bold uppercase">Event Ticket</span>
                                   </div>
                                 ) : (
@@ -706,15 +870,116 @@ export default function AdminDashboard() {
                                 </span>
                               </td>
                               <td className="px-5 py-3.5 font-black text-slate-900 text-sm">
-                                ${Number(t.amount || 0).toFixed(2)}
+                                ${Number(t.amount_paid || t.amount || 0).toFixed(2)}
                               </td>
                               <td className="px-5 py-3.5">
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                  <CheckCircle2 className="w-3 h-3" /> Paid
+                                {isPending ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                                    <Clock3 className="w-3 h-3" /> Pending
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                    <CheckCircle2 className="w-3 h-3" /> Paid
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5 text-right">
+                                {isPending ? (
+                                  <button
+                                    onClick={() => setSelectedPaymentReg({
+                                      id: t.id,
+                                      attendee_name: t.attendee_name || t.name,
+                                      attendee_email: t.attendee_email || t.email,
+                                      event_title: t.source_title || t.event_title,
+                                      amount_paid: t.amount_paid || t.amount,
+                                      payment_method: t.payment_method,
+                                      attendee_type: t.attendee_type,
+                                    })}
+                                    className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1 shadow-sm"
+                                  >
+                                    <DollarSign className="w-3 h-3 text-emerald-600" />
+                                    Confirm
+                                  </button>
+                                ) : (
+                                  <span className="text-slate-500 font-medium">
+                                    {t.transaction_date || t.date ? new Date(t.transaction_date || t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Tab Content: Pending Attendee Payments */}
+              {revenueTab === 'pending_payments' && (
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                      <tr>
+                        <th className="px-5 py-3.5">Attendee / Contact</th>
+                        <th className="px-5 py-3.5">Event Name</th>
+                        <th className="px-5 py-3.5">Attendee Type</th>
+                        <th className="px-5 py-3.5">Amount Due</th>
+                        <th className="px-5 py-3.5">Status</th>
+                        <th className="px-5 py-3.5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(revenueData?.pending_registrations || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
+                            <CheckCircle2 className="w-8 h-8 text-teal-400 mx-auto mb-2" />
+                            <p className="font-semibold text-slate-700 text-sm">All caught up! No pending attendee payments.</p>
+                            <p className="text-xs text-slate-400 mt-0.5">All event tickets and participant fees have been collected.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        (revenueData?.pending_registrations || []).map((r) => {
+                          const guests = Array.isArray(r.guests) ? r.guests : [];
+                          return (
+                            <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="px-5 py-3.5">
+                                <div className="font-bold text-slate-900">{r.attendee_name}</div>
+                                <div className="text-[11px] text-slate-400">{r.attendee_email || '—'}</div>
+                                {r.company && <div className="text-[10px] text-slate-500 font-semibold">{r.company}</div>}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <div className="font-bold text-slate-800">{r.event_title}</div>
+                                <div className="text-[10px] text-slate-400 font-medium">
+                                  {r.event_date ? new Date(r.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                                </div>
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700">
+                                  {r.attendee_type || 'Member'}
+                                </span>
+                                {guests.length > 0 && (
+                                  <div className="text-[10px] text-slate-400 mt-0.5 font-semibold">
+                                    +{guests.length} Guest{guests.length !== 1 ? 's' : ''}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-5 py-3.5 font-black text-slate-900 text-sm">
+                                ${Number(r.amount_paid || 0).toFixed(2)}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                                  <Clock3 className="w-3 h-3" /> Pending
                                 </span>
                               </td>
-                              <td className="px-5 py-3.5 text-right text-slate-500 font-medium">
-                                {t.date ? new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                              <td className="px-5 py-3.5 text-right">
+                                <button
+                                  onClick={() => setSelectedPaymentReg(r)}
+                                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm hover:shadow transition-all inline-flex items-center gap-1.5"
+                                >
+                                  <DollarSign className="w-3.5 h-3.5" />
+                                  <span>Confirm Payment</span>
+                                </button>
                               </td>
                             </tr>
                           );
@@ -746,9 +1011,15 @@ export default function AdminDashboard() {
                       </span>
                     )}
                   </div>
-                  <Link to="/admin/members" className="text-xs font-bold text-teal-600 hover:text-teal-700 transition-colors">
-                    View All Members →
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <Link to="/admin/members?status=pending" className="text-xs font-bold text-rose-600 hover:text-rose-700 transition-colors">
+                      Review Pending →
+                    </Link>
+                    <span className="text-slate-300">|</span>
+                    <Link to="/admin/members" className="text-xs font-bold text-teal-600 hover:text-teal-700 transition-colors">
+                      View All Members →
+                    </Link>
+                  </div>
                 </div>
                 <div className="divide-y divide-slate-50">
                   {loading ? (
@@ -965,7 +1236,7 @@ export default function AdminDashboard() {
                       return (
                         <div 
                           key={enquiry.id} 
-                          onClick={() => setSelectedSponsorEnquiry(enquiry)}
+                          onClick={() => handleOpenSponsorEnquiry(enquiry)}
                           className="px-8 py-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
                         >
                           <div className="flex items-center gap-4 min-w-0 flex-1 mr-4">
@@ -974,9 +1245,12 @@ export default function AdminDashboard() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-black text-slate-900 truncate">
+                                <span className={`text-sm truncate ${enquiry.status === 'new' ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
                                   {enquiry.company_name}
                                 </span>
+                                {enquiry.status === 'new' && (
+                                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" title="New unread enquiry" />
+                                )}
                                 <span className="text-xs text-slate-400 font-medium">
                                   · {enquiry.contact_name}
                                 </span>
@@ -1000,7 +1274,7 @@ export default function AdminDashboard() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedSponsorEnquiry(enquiry);
+                                handleOpenSponsorEnquiry(enquiry);
                               }}
                               className="px-3 py-1.5 bg-slate-100 hover:bg-amber-50 hover:text-amber-800 text-slate-600 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
                             >
@@ -1062,34 +1336,74 @@ export default function AdminDashboard() {
             {/* Right: Audit Log / System Status */}
             <div className="space-y-6">
               <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8">
-                <h2 className="text-lg font-black text-slate-900 mb-6 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-teal-500" /> Recent Actions
-                </h2>
-                <div className="space-y-6">
-                  {loading ? (
-                    <div className="text-center text-slate-500 text-sm">Loading activity...</div>
-                  ) : recentLog.length === 0 ? (
-                    <div className="text-center text-slate-500 text-sm">No recent activity.</div>
-                  ) : recentLog.map((log) => (
-                    <div key={log.id} className="flex gap-4 relative">
-                      <div className="w-px bg-slate-100 absolute left-2 top-8 bottom-[-24px] last:hidden" />
-                      <div className="w-4 h-4 rounded-full bg-teal-500/20 flex items-center justify-center flex-shrink-0 mt-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-teal-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-800 leading-snug">
-                          <span className="font-bold">{log.user_email || 'System'}</span> {log.action} <span className="font-bold text-teal-600">{log.target || ''}</span>
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-1 font-bold uppercase tracking-widest">
-                          {new Date(log.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-teal-500" /> Recent Actions
+                  </h2>
+                  <Link 
+                    to="/admin/changelogs"
+                    className="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 group"
+                  >
+                    View All <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </Link>
                 </div>
-                <button className="w-full mt-10 py-3 bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all">
-                  Full Audit History
-                </button>
+
+                <div className="space-y-4">
+                  {activityLoading && activityLogs.length === 0 ? (
+                    <div className="space-y-4">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="animate-pulse flex gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 shrink-0" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 bg-slate-100 rounded w-3/4" />
+                            <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : activityLogs.length === 0 ? (
+                    <div className="text-center py-6">
+                      <Activity className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-500 text-xs font-medium">No actions logged yet.</p>
+                    </div>
+                  ) : (
+                    activityLogs.slice(0, 5).map((log) => {
+                      const display = getActionDisplay(log.action);
+                      const desc = buildActivityDescription(log);
+                      return (
+                        <div key={log.id} className="flex gap-3 text-left group">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold border ${display.bg} ${display.color}`}>
+                            {log.actor_name?.charAt(0)?.toUpperCase() || 'A'}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-slate-900 truncate">
+                                {log.actor_name || log.actor_email}
+                              </span>
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                                {log.actor_role || 'admin'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-snug mt-0.5 font-medium line-clamp-2">
+                              {desc}
+                            </p>
+                            <span className="text-[10px] text-slate-400 font-semibold block mt-1">
+                              {new Date(log.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <Link 
+                  to="/admin/changelogs"
+                  className="w-full mt-6 py-2.5 bg-slate-50 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-xs font-bold rounded-xl transition-all border border-slate-100 flex items-center justify-center gap-1.5"
+                >
+                  <span>Explore Full Change Log</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
 
               <div className="bg-teal-600 rounded-[2.5rem] p-8 text-white">
@@ -1113,6 +1427,175 @@ export default function AdminDashboard() {
 
           </div>
 
+          {/* ── Admin & Executive Activity / Change Log Section ── */}
+          <div id="change-logs-section" className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                      Admin &amp; Executive Change Logs
+                      {activityPagination?.total ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-slate-100 text-slate-600">
+                          {activityPagination.total} Total
+                        </span>
+                      ) : null}
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Full audit trail of administrative actions, member updates, sponsor changes, and event management
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchActivityLogs(activityPage, activityFilter)}
+                  disabled={activityLoading}
+                  className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all disabled:opacity-50"
+                  title="Refresh Logs"
+                >
+                  <RefreshCw className={`w-4 h-4 ${activityLoading ? 'animate-spin text-teal-600' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="px-8 py-3 bg-slate-50/60 border-b border-slate-100 flex items-center gap-2 overflow-x-auto">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0 flex items-center gap-1">
+                <Filter className="w-3.5 h-3.5" /> Filter:
+              </span>
+              {[
+                { id: '',               label: 'All Logs' },
+                { id: 'MEMBER',         label: 'Members' },
+                { id: 'EVENT',          label: 'Events' },
+                { id: 'SPONSOR',        label: 'Sponsors' },
+                { id: 'PAYMENT',        label: 'Payments' },
+                { id: 'ADMIN_ACCOUNT',  label: 'Admin Accounts' },
+              ].map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    setActivityFilter(f.id);
+                    setActivityPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                    activityFilter === f.id
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-white text-slate-600 hover:bg-slate-200/80 border border-slate-200'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Logs List / Table */}
+            <div className="divide-y divide-slate-100">
+              {activityLoading && activityLogs.length === 0 ? (
+                <div className="p-8 space-y-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="animate-pulse flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-slate-100" />
+                        <div className="space-y-2">
+                          <div className="h-4 bg-slate-100 rounded w-48" />
+                          <div className="h-3 bg-slate-100 rounded w-72" />
+                        </div>
+                      </div>
+                      <div className="h-4 bg-slate-100 rounded w-28" />
+                    </div>
+                  ))}
+                </div>
+              ) : activityLogs.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Activity className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-700 font-bold text-sm">No activity logs found</p>
+                  <p className="text-slate-400 text-xs mt-1">Actions performed by admins or executive members will appear here.</p>
+                </div>
+              ) : (
+                activityLogs.map((log) => {
+                  const display = getActionDisplay(log.action);
+                  const desc = buildActivityDescription(log);
+                  return (
+                    <div key={log.id} className="px-8 py-4.5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors">
+                      <div className="flex items-start sm:items-center gap-4 min-w-0 flex-1">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black shrink-0 text-sm border shadow-sm ${display.bg} ${display.color}`}>
+                          {log.actor_name?.charAt(0)?.toUpperCase() || 'A'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-black text-slate-900">
+                              {log.actor_name || log.actor_email}
+                            </span>
+                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                              log.actor_role === 'executive' 
+                                ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}>
+                              {log.actor_role || 'Admin'}
+                            </span>
+                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${display.bg} ${display.color}`}>
+                              {display.label}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-700 font-medium mt-1 leading-relaxed">
+                            {desc}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+                        {log.target && (
+                          <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 hidden sm:inline-block">
+                            {log.target}
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
+                          <Clock3 className="w-3.5 h-3.5 text-slate-400" />
+                          {new Date(log.created_at).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Pagination footer */}
+            {activityPagination && activityPagination.pages > 1 && (
+              <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-500 font-medium">
+                  Page <strong className="text-slate-800">{activityPagination.page}</strong> of <strong className="text-slate-800">{activityPagination.pages}</strong> ({activityPagination.total} entries)
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActivityPage(p => Math.max(1, p - 1))}
+                    disabled={activityPage <= 1 || activityLoading}
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-all flex items-center gap-1"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                  </button>
+                  <button
+                    onClick={() => setActivityPage(p => Math.min(activityPagination.pages, p + 1))}
+                    disabled={activityPage >= activityPagination.pages || activityLoading}
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-all flex items-center gap-1"
+                  >
+                    Next <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Contact Inquiry Detail Modal */}
@@ -1220,7 +1703,7 @@ export default function AdminDashboard() {
                 <div className="bg-slate-50 p-3 rounded-2xl flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Change Status</span>
                   <div className="flex items-center gap-1.5">
-                    {['new', 'in_review', 'approved', 'declined'].map((st) => (
+                    {['new', 'read', 'in_review', 'approved', 'declined'].map((st) => (
                       <button
                         key={st}
                         onClick={() => handleUpdateSponsorStatus(selectedSponsorEnquiry.id, st)}
@@ -1297,6 +1780,16 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── Payment Confirmation Modal ── */}
+        {selectedPaymentReg && (
+          <PaymentConfirmationModal
+            isOpen={!!selectedPaymentReg}
+            registration={selectedPaymentReg}
+            onClose={() => setSelectedPaymentReg(null)}
+            onConfirm={handleConfirmAttendeePayment}
+          />
         )}
     </main>
   );

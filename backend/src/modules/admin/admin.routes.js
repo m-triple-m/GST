@@ -4,6 +4,7 @@ const router  = express.Router();
 const ctrl    = require('./admin.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
 const { requireRole } = require('../../middleware/role.middleware');
+const activityLog = require('../../middleware/activityLog.middleware');
 
 // All admin routes require authentication + admin role
 router.use(verifyToken, requireRole('admin'));
@@ -21,6 +22,10 @@ router.post('/verify-password', ctrl.verifyOwnPassword);
 // GET  /api/admin/accounts  — list all admin accounts
 // POST /api/admin/accounts  — create a new admin account
 router.get('/accounts',  ctrl.getAdminAccounts);
-router.post('/accounts', ctrl.addAdminAccount);
+router.post('/accounts',
+  activityLog('ADMIN_ACCOUNT_CREATED', null, (req) => ({ email: req.body.email, role: req.body.role })),
+  ctrl.addAdminAccount
+);
 
 module.exports = router;
+

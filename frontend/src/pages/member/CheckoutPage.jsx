@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   CreditCard, Shield, ChevronRight, ArrowLeft,
   CheckCircle, Lock, User, Landmark, Loader2,
-  Calendar, Ticket, Users
+  Calendar, Ticket, Users, Clock3, ShieldAlert
 } from 'lucide-react';
 import api from '../../api';
 import { useCart } from '../../context/CartContext';
@@ -31,6 +31,21 @@ export default function CheckoutPage() {
     paymentMethod: 'card',
   });
   const [complete, setComplete] = useState(false);
+  const [memberStatus, setMemberStatus] = useState(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+
+  useEffect(() => {
+    api.get('/members/me')
+      .then(res => {
+        setMemberStatus(res.data.data?.status || null);
+      })
+      .catch(() => {
+        setMemberStatus(null);
+      })
+      .finally(() => {
+        setLoadingStatus(false);
+      });
+  }, []);
 
   const inputCls = "w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-all";
   const labelCls = "block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2";
@@ -64,6 +79,33 @@ export default function CheckoutPage() {
       setSubmitting(false);
     }
   };
+
+  if (memberStatus === 'pending') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-[3rem] p-10 text-center shadow-lg border border-amber-200">
+          <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-6">
+            <Clock3 className="w-10 h-10 text-amber-500" />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-3">Application Under Review</h2>
+          <p className="text-slate-500 text-sm leading-relaxed mb-6">
+            Your membership application is currently pending admin approval. You will be able to complete event bookings once your application has been accepted.
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-left text-xs text-amber-700">
+            GST admins typically approve applications within 2–3 business days. You'll receive an email notification as soon as your account is activated.
+          </div>
+          <div className="flex gap-3">
+            <Link to="/dashboard" className="flex-1 btn-teal py-3 rounded-xl text-white font-bold text-xs">
+              Go to Dashboard
+            </Link>
+            <Link to="/events" className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50">
+              Browse Events
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0 && !complete) {
     return (

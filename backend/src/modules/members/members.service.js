@@ -24,8 +24,10 @@ const getMyProfile = async (userId) => {
       const firstName = nameParts[0] ? (nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1)) : 'Admin';
       const lastName = nameParts[1] ? (nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1)) : 'User';
 
+      const memberId = await generateMemberId();
       await repo.createMemberApplication({
         userId,
+        memberId,
         email: user.email,
         firstName,
         lastName,
@@ -65,6 +67,24 @@ const generateDefaultPassword = (firstName) => {
   return `GST@${year}${namebit}`;
 };
 
+/**
+ * Generate a unique 8-digit membership ID matching legacy Wild Apricot pattern
+ */
+const generateMemberId = async () => {
+  let memberId;
+  let exists = true;
+  let attempts = 0;
+  while (exists && attempts < 20) {
+    attempts++;
+    memberId = String(Math.floor(50000000 + Math.random() * 49999999));
+    const existing = await repo.getMemberByMemberId(memberId);
+    if (!existing) {
+      exists = false;
+    }
+  }
+  return memberId;
+};
+
 const submitApplication = async (body) => {
   // Prevent duplicate applications for the same email
   const existing = await repo.getMemberByEmail(body.email);
@@ -86,14 +106,25 @@ const submitApplication = async (body) => {
     body._defaultPassword = defaultPassword;
   }
 
+  if (body.isRetired) {
+    if (!body.companyName) body.companyName = 'Retired';
+    if (!body.jobTitle) body.jobTitle = 'Retired';
+    if (!body.companyPhone) body.companyPhone = body.phone || null;
+    if (!body.companyStreet) body.companyStreet = body.homeStreet || null;
+    if (!body.companyCity) body.companyCity = body.homeCity || null;
+    if (!body.companyState) body.companyState = body.homeState || null;
+    if (!body.companyZip) body.companyZip = body.homeZip || null;
+  }
+
   if (body.education && Array.isArray(body.education) && body.education.length > 0) {
     if (!body.university) body.university = body.education[0].university || '';
     if (!body.degree) body.degree = body.education[0].degree || '';
     if (!body.major) body.major = body.education[0].major || '';
   }
 
-  await repo.createMemberApplication({ ...body, userId });
-  return { defaultPassword: body._defaultPassword || null };
+  const memberId = body.memberId || body.member_id || (await generateMemberId());
+  await repo.createMemberApplication({ ...body, userId, memberId });
+  return { defaultPassword: body._defaultPassword || null, memberId };
 };
 
 const listMembers = async (query) => {
@@ -125,9 +156,52 @@ const getMemberById = async (id) => {
   return member;
 };
 
-const updateMemberStatus = async (id, status) => {
-  const updated = await repo.updateMemberStatus(id, status);
+const updateMemberById = async (id, data) => {
+  const member = await repo.getMemberById(id);
+  if (!member) throw ApiError.notFound('Member not found');
+
+  // Check email uniqueness if email is being updated
+  const newEmail = data.email || data.emailAddress;
+  if (newEmail && newEmail !== member.email) {
+    const existing = await repo.getMemberByEmail(newEmail);
+    if (existing && existing.id !== Number(id)) {
+      throw ApiError.conflict('Another member is already using this email address');
+    }
+  }
+
+  if (data.education && Array.isArray(data.education) && data.education.length > 0) {
+    if (!data.university) data.university = data.education[0].university || '';
+    if (!data.degree) data.degree = data.education[0].degree || '';
+    if (!data.major) data.major = data.education[0].major || '';
+  }
+
+  await repo.updateMemberById(id, data);
+  return repo.getMemberById(id);
+};
+
+const updateMemberStatus = async (id, status, expiresAt) => {
+  const updated = await repo.updateMemberStatus(id, status, expiresAt);
   if (!updated) throw ApiError.notFound('Member not found');
+};
+
+const renewMember = async (id, months = 12) => {
+  const updated = await repo.renewMember(id, months);
+  if (!updated) throw ApiError.notFound('Member not found');
+  return repo.getMemberById(id);
+};
+
+const renewMyMembership = async (userId, months = 12) => {
+  const member = await repo.getMemberByUserId(userId);
+  if (!member) throw ApiError.notFound('Member profile not found');
+  const updated = await repo.renewMember(member.id, months);
+  if (!updated) throw ApiError.badRequest('Failed to renew membership');
+  return repo.getMemberByUserId(userId);
+};
+
+const updateMemberExpiration = async (id, expiresAt) => {
+  const updated = await repo.updateMemberExpiration(id, expiresAt);
+  if (!updated) throw ApiError.notFound('Member not found');
+  return repo.getMemberById(id);
 };
 
 const toggleExecutive = async (id, isExecutive) => {
@@ -158,6 +232,7 @@ const getMyRegisteredEvents = async (userId) => repo.getMyRegisteredEvents(userI
 
 module.exports = {
   getExecutiveBoard, getExecutiveById, getMyProfile, updateMyProfile,
-  submitApplication, listMembers, getMemberById, updateMemberStatus,
+  submitApplication, listMembers, getMemberById, updateMemberById, updateMemberStatus,
+  renewMember, renewMyMembership, updateMemberExpiration,
   toggleExecutive, resetMemberPassword, deleteMember, getMyRegisteredEvents,
 };

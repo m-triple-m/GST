@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, Navigate, useLocation } from 'react-router-dom';
-import { Globe, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
@@ -54,8 +54,8 @@ export default function LoginPage() {
         <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <Link to="/" className="w-16 h-16 rounded-2xl bg-teal-500 flex items-center justify-center shadow-lg mb-4 hover:scale-105 transition-transform duration-200">
-              <Globe className="w-8 h-8 text-white" strokeWidth={2.5} />
+            <Link to="/" className="w-20 h-20 flex items-center justify-center mb-4 hover:scale-105 transition-transform duration-200">
+              <img src="/assets/new_logo.png" alt="GST Logo" className="w-full h-full object-contain drop-shadow-2xl" />
             </Link>
             <h1 className="text-2xl font-black text-white">Member Portal</h1>
             <p className="text-slate-400 text-sm mt-1">Access your GST account and resources</p>

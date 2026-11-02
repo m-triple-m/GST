@@ -39,11 +39,15 @@ const sendError = (res, statusCode = 500, message = 'Something went wrong') => {
  * @param {number} total  - total row count
  * @returns {{ page, limit, total, pages }}
  */
-const buildPagination = (page, limit, total) => ({
-  page:  Number(page),
-  limit: Number(limit),
-  total: Number(total),
-  pages: Math.ceil(Number(total) / Number(limit)),
-});
+const buildPagination = (page, limit, total) => {
+  const pages = Math.ceil(Number(total) / Number(limit)) || 1;
+  return {
+    page:  Number(page),
+    limit: Number(limit),
+    total: Number(total),
+    pages,
+    totalPages: pages,
+  };
+};
 
 module.exports = { sendSuccess, sendError, buildPagination };

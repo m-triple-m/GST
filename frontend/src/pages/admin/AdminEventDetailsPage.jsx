@@ -4,10 +4,12 @@ import {
   Calendar, Clock, MapPin, Users, DollarSign, Download, CheckCircle2,
   Clock3, AlertTriangle, CreditCard, ArrowLeft, Edit2, Trash2,
   ExternalLink, Search, RefreshCw, AlertCircle, Loader2, Tag,
-  Building2, UserCheck, ShieldCheck, Mail, ChevronRight, Lock
+  Building2, UserCheck, ShieldCheck, Mail, ChevronRight, Lock, RotateCcw
 } from 'lucide-react';
 import api from '../../api';
 import { gstToast } from '../../utils/toast';
+import PaymentConfirmationModal from '../../components/modals/PaymentConfirmationModal';
+import RefundConfirmationModal from '../../components/modals/RefundConfirmationModal';
 
 /* ── Helpers ─────────────────────────────────────────────── */
 function formatDate(dateStr) {
@@ -214,6 +216,8 @@ export default function AdminEventDetailsPage() {
   const [attendeeFilter, setAttendeeFilter] = useState('all');
   const [updatingId, setUpdatingId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedPaymentReg, setSelectedPaymentReg] = useState(null);
+  const [selectedRefundReg, setSelectedRefundReg] = useState(null);
 
   const fetchDetails = useCallback(async () => {
     try {
@@ -235,17 +239,35 @@ export default function AdminEventDetailsPage() {
     fetchDetails();
   }, [fetchDetails]);
 
-  const handleUpdateStatus = async (regId, newStatus, paymentMethod) => {
+  const handleConfirmPayment = async (regId, newStatus, paymentMethod, note) => {
     try {
       setUpdatingId(regId);
       const payload = { payment_status: newStatus };
       if (paymentMethod) payload.payment_method = paymentMethod;
+      if (note) payload.notes = note;
       await api.patch(`/events/registrations/${regId}/status`, payload);
-      gstToast.success(`Registration marked as ${newStatus}${paymentMethod ? ` (${paymentMethod === 'at_door' ? 'Cash' : paymentMethod})` : ''}.`);
+      const methodLabel = paymentMethod === 'at_door' ? 'Cash' : (paymentMethod === 'card' ? 'Card' : (paymentMethod === 'comp' ? 'Complimentary' : paymentMethod));
+      gstToast.success(`Payment confirmed (${methodLabel}).`);
       await fetchDetails();
     } catch (err) {
       console.error(err);
-      gstToast.error(err.response?.data?.message || 'Failed to update status.');
+      gstToast.error(err.response?.data?.message || 'Failed to update payment status.');
+      throw err;
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleRefund = async (regId) => {
+    try {
+      setUpdatingId(regId);
+      await api.patch(`/events/registrations/${regId}/status`, { payment_status: 'refunded' });
+      gstToast.success('Registration marked as refunded.');
+      await fetchDetails();
+    } catch (err) {
+      console.error(err);
+      gstToast.error(err.response?.data?.message || 'Failed to process refund.');
+      throw err;
     } finally {
       setUpdatingId(null);
     }
@@ -296,6 +318,24 @@ export default function AdminEventDetailsPage() {
   const { day, month, full: dateFull } = formatDate(event.event_date);
   const timeFormatted = formatTime(event.start_time);
   const endTimeFormatted = formatTime(event.end_time);
+
+  // Compute pending metrics with fallback calculations to handle at-door orders
+  const pendingList = registrations.filter(r => (r.payment_status || 'pending').toLowerCase() === 'pending');
+  const pendingOrdersCount = analytics.pending_registrations ?? analytics.payment_status_counts?.pending ?? pendingList.length;
+  const pendingAttendeesCount = analytics.pending_attendees_count ?? pendingList.reduce((acc, r) => acc + 1 + (Array.isArray(r.guests) ? r.guests.length : 0), 0);
+
+  const fallbackPendingAmount = pendingList.reduce((acc, r) => {
+    const partySize = 1 + (Array.isArray(r.guests) ? r.guests.length : 0);
+    const unitPrice = r.attendee_type === 'guest'
+      ? (Number(event?.non_member_ticket_cost) || Number(event?.ticket_cost) || 0)
+      : (Number(event?.member_ticket_cost) || Number(event?.ticket_cost) || 0);
+    const cost = Number(r.amount_paid) > 0 ? Number(r.amount_paid) : (Number(r.expected_amount || r.effective_amount) || (unitPrice * partySize));
+    return acc + cost;
+  }, 0);
+
+  const pendingAmount = Number(analytics.pending_revenue ?? analytics.pending_amount ?? 0) > 0
+    ? Number(analytics.pending_revenue ?? analytics.pending_amount ?? 0)
+    : fallbackPendingAmount;
 
   const filteredRegistrations = registrations.filter(r => {
     const q = search.toLowerCase();
@@ -418,7 +458,7 @@ export default function AdminEventDetailsPage() {
       <div className="max-w-7xl mx-auto px-6 sm:px-10 py-8 w-full space-y-8">
 
         {/* ── Analytics Metric Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Revenue */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
@@ -427,10 +467,10 @@ export default function AdminEventDetailsPage() {
                 ${Number(analytics.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </h3>
               <p className="text-[11px] font-semibold text-emerald-600 mt-1">
-                {analytics.paid_registrations || 0} paid order{(analytics.paid_registrations || 0) !== 1 ? 's' : ''}
+                {analytics.paid_registrations ?? analytics.payment_status_counts?.paid ?? 0} paid order{(analytics.paid_registrations ?? analytics.payment_status_counts?.paid ?? 0) !== 1 ? 's' : ''}
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
               <DollarSign className="w-6 h-6" />
             </div>
           </div>
@@ -464,30 +504,68 @@ export default function AdminEventDetailsPage() {
             <div>
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Attendee Breakdown</p>
               <h3 className="text-2xl font-black text-slate-900">
-                {analytics.member_count || 0} <span className="text-xs font-bold text-slate-400">Members</span>
+                {analytics.members_count ?? analytics.member_count ?? 0} <span className="text-xs font-bold text-slate-400">Members</span>
               </h3>
               <p className="text-[11px] font-semibold text-blue-600 mt-1">
-                {analytics.guest_count || 0} Guest{(analytics.guest_count || 0) !== 1 ? 's' : ''}
+                {analytics.guests_count ?? analytics.guest_count ?? 0} Guest{(analytics.guests_count ?? analytics.guest_count ?? 0) !== 1 ? 's' : ''}
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
               <UserCheck className="w-6 h-6" />
             </div>
           </div>
 
           {/* Pending / Unpaid */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center justify-between">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setPaymentFilter(prev => prev === 'pending' ? 'all' : 'pending')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setPaymentFilter(prev => prev === 'pending' ? 'all' : 'pending'); } }}
+            className={`cursor-pointer rounded-2xl p-5 border transition-all duration-200 flex items-center justify-between select-none ${
+              paymentFilter === 'pending'
+                ? 'bg-amber-50/70 border-amber-300 ring-2 ring-amber-500 shadow-md scale-[1.01]'
+                : 'bg-white border-slate-200 hover:border-amber-300 hover:shadow-sm'
+            }`}
+            title={paymentFilter === 'pending' ? 'Clear pending filter' : 'Click to filter participant list by pending payments'}
+          >
             <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pending Payments</p>
+              <div className="flex items-center gap-1.5 mb-1">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Payments</p>
+                {paymentFilter === 'pending' && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-200 text-amber-800">
+                    Filtered
+                  </span>
+                )}
+              </div>
               <h3 className="text-2xl font-black text-slate-900">
-                {analytics.pending_registrations || 0}
+                ${Number(pendingAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
               <p className="text-[11px] font-semibold text-amber-600 mt-1">
-                ${Number(analytics.pending_amount || 0).toFixed(2)} to collect
+                {pendingOrdersCount > 0
+                  ? `${pendingOrdersCount} pending order${pendingOrdersCount !== 1 ? 's' : ''}${pendingAttendeesCount > pendingOrdersCount ? ` (${pendingAttendeesCount} attendee${pendingAttendeesCount !== 1 ? 's' : ''})` : ''}`
+                  : 'All payments collected'}
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+              paymentFilter === 'pending' ? 'bg-amber-500 text-white shadow-sm' : 'bg-amber-50 text-amber-600'
+            }`}>
               <Clock3 className="w-6 h-6" />
+            </div>
+          </div>
+
+          {/* Refunded Amount */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Refunded Amount</p>
+              <h3 className="text-2xl font-black text-slate-900">
+                ${Number(analytics.refunded_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </h3>
+              <p className="text-[11px] font-semibold text-purple-600 mt-1">
+                {analytics.refunded_registrations ?? analytics.payment_status_counts?.refunded ?? 0} refunded order{(analytics.refunded_registrations ?? analytics.payment_status_counts?.refunded ?? 0) !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+              <RotateCcw className="w-6 h-6" />
             </div>
           </div>
         </div>
@@ -576,6 +654,14 @@ export default function AdminEventDetailsPage() {
                     const badge = paymentBadge(r.payment_status);
                     const guests = Array.isArray(r.guests) ? r.guests : [];
                     const isUpdating = updatingId === r.id;
+                    const isPending = (r.payment_status || 'pending').toLowerCase() === 'pending';
+                    const partySize = 1 + guests.length;
+                    const unitPrice = r.attendee_type === 'guest'
+                      ? (Number(event?.non_member_ticket_cost) || Number(event?.ticket_cost) || 0)
+                      : (Number(event?.member_ticket_cost) || Number(event?.ticket_cost) || 0);
+                    const effectiveAmount = Number(r.amount_paid) > 0
+                      ? Number(r.amount_paid)
+                      : (Number(r.expected_amount || r.effective_amount) || (unitPrice * partySize));
 
                     return (
                       <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
@@ -629,8 +715,13 @@ export default function AdminEventDetailsPage() {
 
                         {/* Amount / Method */}
                         <td className="px-6 py-4">
-                          <div className="font-black text-slate-900">
-                            ${Number(r.amount_paid || 0).toFixed(2)}
+                          <div className="font-black text-slate-900 flex items-center gap-1.5">
+                            <span>${Number(effectiveAmount).toFixed(2)}</span>
+                            {isPending && Number(effectiveAmount) > 0 && Number(r.amount_paid || 0) === 0 && (
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                Due
+                              </span>
+                            )}
                           </div>
                           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1 mt-0.5">
                             <CreditCard className="w-3 h-3" />
@@ -653,36 +744,34 @@ export default function AdminEventDetailsPage() {
 
                         {/* Actions */}
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-2">
                             {r.payment_status !== 'paid' && (
-                              <div className="inline-flex items-center gap-1">
-                                <button
-                                  onClick={() => handleUpdateStatus(r.id, 'paid', 'at_door')}
-                                  disabled={isUpdating}
-                                  className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold transition-all disabled:opacity-50 flex items-center gap-1 shadow-sm"
-                                  title="Mark paid as Cash (Pay at door)"
-                                >
-                                  <DollarSign className="w-3 h-3 text-emerald-600" />
-                                  {isUpdating ? 'Updating…' : 'Paid (Cash)'}
-                                </button>
-                                <button
-                                  onClick={() => handleUpdateStatus(r.id, 'paid', 'card')}
-                                  disabled={isUpdating}
-                                  className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-[10px] font-bold transition-all disabled:opacity-50"
-                                  title="Mark paid as Online / Card"
-                                >
-                                  Card
-                                </button>
-                              </div>
+                              <button
+                                onClick={() => setSelectedPaymentReg({
+                                  ...r,
+                                  amount_paid: effectiveAmount,
+                                  amount: effectiveAmount,
+                                  expected_amount: effectiveAmount,
+                                  event_title: event?.title,
+                                  event_date: event?.event_date
+                                })}
+                                disabled={isUpdating}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-sm hover:shadow"
+                                title="Open Payment Confirmation Modal"
+                              >
+                                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>{isUpdating ? 'Updating…' : 'Confirm Payment'}</span>
+                              </button>
                             )}
                             {r.payment_status === 'paid' && (
                               <button
-                                onClick={() => handleUpdateStatus(r.id, 'refunded')}
+                                onClick={() => setSelectedRefundReg({ ...r, event_title: data.event?.title })}
                                 disabled={isUpdating}
-                                className="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold transition-all disabled:opacity-50"
-                                title="Mark registration as refunded"
+                                className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
+                                title="Refund / Void Payment"
                               >
-                                {isUpdating ? 'Updating…' : 'Refund'}
+                                <RefreshCw className="w-3.5 h-3.5 text-purple-600" />
+                                <span>{isUpdating ? 'Updating…' : 'Refund'}</span>
                               </button>
                             )}
                           </div>
@@ -850,6 +939,26 @@ export default function AdminEventDetailsPage() {
             setShowDeleteModal(false);
             navigate('/admin/events');
           }}
+        />
+      )}
+
+      {/* ── Payment Confirmation Modal ── */}
+      {selectedPaymentReg && (
+        <PaymentConfirmationModal
+          isOpen={!!selectedPaymentReg}
+          registration={selectedPaymentReg}
+          onClose={() => setSelectedPaymentReg(null)}
+          onConfirm={handleConfirmPayment}
+        />
+      )}
+
+      {/* ── Refund Confirmation Modal ── */}
+      {selectedRefundReg && (
+        <RefundConfirmationModal
+          isOpen={!!selectedRefundReg}
+          registration={selectedRefundReg}
+          onClose={() => setSelectedRefundReg(null)}
+          onConfirm={handleRefund}
         />
       )}
 

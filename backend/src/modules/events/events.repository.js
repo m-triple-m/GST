@@ -275,6 +275,35 @@ const updateRegistrationPaymentStatus = async (registrationId, payment_status, p
     params.push(payment_method);
   }
 
+  // If marking as paid and amount_paid is 0, auto-fill from event ticket cost
+  if (payment_status === 'paid') {
+    const [regRows] = await db.execute(
+      `SELECT er.attendee_type, er.guests, er.amount_paid, e.member_ticket_cost, e.non_member_ticket_cost, e.ticket_cost
+       FROM event_registrations er
+       JOIN events e ON e.id = er.event_id
+       WHERE er.id = ?`,
+      [registrationId]
+    );
+    if (regRows.length && Number(regRows[0].amount_paid || 0) === 0) {
+      const reg = regRows[0];
+      let guests = [];
+      try {
+        guests = Array.isArray(reg.guests) ? reg.guests : JSON.parse(reg.guests || '[]');
+      } catch {
+        guests = [];
+      }
+      const partySize = 1 + guests.length;
+      const unit = reg.attendee_type === 'guest'
+        ? (Number(reg.non_member_ticket_cost) || Number(reg.ticket_cost) || 0)
+        : (Number(reg.member_ticket_cost) || Number(reg.ticket_cost) || 0);
+      const calculatedAmount = unit * partySize;
+      if (calculatedAmount > 0) {
+        sql += ', amount_paid = ?';
+        params.push(calculatedAmount);
+      }
+    }
+  }
+
   sql += ' WHERE id = ?';
   params.push(registrationId);
 

@@ -753,25 +753,98 @@ export default function MembershipPage() {
               })}
             </div>
 
-            {/* Privacy Policy */}
-            <div className="pt-3 border-t border-slate-100">
-              <label className="flex items-start gap-3 cursor-pointer p-4 rounded-2xl bg-teal-50/70 border border-teal-200/80">
-                <input
-                  type="checkbox"
-                  checked={form.privacyPolicy}
-                  onChange={(e) => update('privacyPolicy', e.target.checked)}
-                  className="w-4 h-4 mt-0.5 accent-teal-600 rounded"
-                />
-                <div>
-                  <span className="text-xs font-bold text-slate-800 block">
-                    Privacy Policy &amp; Terms Agreement *
-                  </span>
-                  <span className="text-[11px] text-slate-600 block mt-0.5 leading-relaxed">
-                    I acknowledge and agree to GST's membership terms, code of conduct, and privacy policy regarding member directory and communication records.
-                  </span>
-                </div>
-              </label>
-              <FieldError msg={errors.privacyPolicy} />
+            {/* Permissions, Consents & Privacy Preferences */}
+            <div className="pt-4 border-t border-slate-100 space-y-4">
+              <div>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-teal-600" /> Permissions &amp; Privacy Preferences
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Manage your communication consent, directory visibility, and terms agreement.
+                </p>
+              </div>
+
+              {/* Mandatory Terms Agreement */}
+              <div>
+                <label className="flex items-start gap-3 cursor-pointer p-4 rounded-2xl bg-teal-50/70 border border-teal-200/80 hover:bg-teal-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={form.privacyPolicy}
+                    onChange={(e) => update('privacyPolicy', e.target.checked)}
+                    className="w-4 h-4 mt-0.5 accent-teal-600 rounded"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      Privacy Policy &amp; Terms Agreement <span className="text-rose-500">*</span>
+                    </span>
+                    <span className="text-[11px] text-slate-600 block mt-0.5 leading-relaxed">
+                      I agree to the Geophysical Society of Tulsa (GST) Constitution, Bylaws, Code of Conduct, and Privacy Policy regarding society communications and membership records.
+                    </span>
+                  </div>
+                </label>
+                <FieldError msg={errors.privacyPolicy} />
+              </div>
+
+              {/* Communication & Directory Opt-Ins */}
+              <div className="space-y-2.5 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                  Communication &amp; Directory Options
+                </p>
+
+                {/* Event Announcements */}
+                <label className="flex items-start gap-3 cursor-pointer p-2 rounded-xl hover:bg-white transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={form.eventAnnouncements}
+                    onChange={(e) => update('eventAnnouncements', e.target.checked)}
+                    className="w-4 h-4 mt-0.5 accent-teal-600 rounded"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      Event Announcements
+                    </span>
+                    <span className="text-[11px] text-slate-500 block">
+                      Receive notices regarding monthly technical luncheons, short courses, social gatherings, and symposiums.
+                    </span>
+                  </div>
+                </label>
+
+                {/* Member emails and newsletters */}
+                <label className="flex items-start gap-3 cursor-pointer p-2 rounded-xl hover:bg-white transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={form.newsletterOptIn}
+                    onChange={(e) => update('newsletterOptIn', e.target.checked)}
+                    className="w-4 h-4 mt-0.5 accent-teal-600 rounded"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      Member Emails &amp; Newsletters
+                    </span>
+                    <span className="text-[11px] text-slate-500 block">
+                      Receive GST newsletters, annual meeting notices, the President&rsquo;s address, and election ballots.
+                    </span>
+                  </div>
+                </label>
+
+                {/* Access to profile by others (Directory) */}
+                <label className="flex items-start gap-3 cursor-pointer p-2 rounded-xl hover:bg-white transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={form.directoryVisible}
+                    onChange={(e) => update('directoryVisible', e.target.checked)}
+                    className="w-4 h-4 mt-0.5 accent-teal-600 rounded"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      Member Directory Visibility (Access to profile by others)
+                    </span>
+                    <span className="text-[11px] text-slate-500 block">
+                      Allow other verified GST members to view your name, professional title, and company in the private online member directory.
+                    </span>
+                  </div>
+                </label>
+              </div>
             </div>
           </div>
         )}
@@ -899,6 +972,17 @@ export default function MembershipPage() {
                       </p>
                     ))
                   )}
+                </div>
+              </div>
+
+              {/* Permissions & Consents Review */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 sm:col-span-2">
+                <p className="font-black text-slate-400 uppercase tracking-widest text-[10px]">Permissions, Consents &amp; Privacy</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-800">
+                  <p><span className="font-bold">Terms &amp; Privacy Policy:</span> <span className="text-emerald-700 font-bold">✓ Accepted</span></p>
+                  <p><span className="font-bold">Member Directory:</span> {form.directoryVisible ? <span className="text-teal-700 font-bold">Visible to Members</span> : <span className="text-slate-500">Hidden</span>}</p>
+                  <p><span className="font-bold">Event Announcements:</span> {form.eventAnnouncements ? <span className="text-teal-700 font-bold">Subscribed</span> : <span className="text-slate-500">Opted out</span>}</p>
+                  <p><span className="font-bold">Newsletters &amp; Updates:</span> {form.newsletterOptIn ? <span className="text-teal-700 font-bold">Subscribed</span> : <span className="text-slate-500">Opted out</span>}</p>
                 </div>
               </div>
             </div>

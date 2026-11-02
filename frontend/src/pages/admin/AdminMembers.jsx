@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Users, Search,
   CheckCircle2, XCircle, AlertCircle, Star, StarOff,
   ChevronLeft, ChevronRight, RefreshCw, Loader2, Trash2,
-  ShieldAlert, ShieldCheck, X, KeyRound, Copy, Eye,
+  ShieldAlert, ShieldCheck, X, KeyRound, Copy, Eye, Pencil,
   MapPin, Building, GraduationCap, Phone, Mail, Award, Check
 } from 'lucide-react';
 import api from '../../api';
 import { gstToast } from '../../utils/toast';
+import { US_STATES } from '../public/membership.config';
 
 // ─────────────────────────────────────────────────────────
 //  Confirm Modal
@@ -73,7 +75,7 @@ function ConfirmModal({ open, onClose, onConfirm, title, message, confirmLabel =
 // ─────────────────────────────────────────────────────────
 //  Full Member Details Modal
 // ─────────────────────────────────────────────────────────
-function MemberDetailsModal({ member, onClose }) {
+function MemberDetailsModal({ member, onClose, onRenew, onActivate, onDeactivate, onEdit }) {
   if (!member) return null;
 
   let educationList = [];
@@ -117,7 +119,12 @@ function MemberDetailsModal({ member, onClose }) {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">{member.email}</p>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <p className="text-xs text-slate-400">{member.email}</p>
+                <span className="font-mono text-[10px] font-bold text-teal-300 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800/60">
+                  Member ID: #{member.member_id || member.id}
+                </span>
+              </div>
             </div>
           </div>
           <button
@@ -163,6 +170,13 @@ function MemberDetailsModal({ member, onClose }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
               <div><span className="font-bold text-slate-500">Phone:</span> <span className="text-slate-800 font-semibold">{member.phone || '—'}</span></div>
               <div><span className="font-bold text-slate-500">Joined:</span> <span className="text-slate-800 font-semibold">{member.joined_at ? new Date(member.joined_at).toLocaleDateString() : '—'}</span></div>
+              <div className="sm:col-span-2">
+                <span className="font-bold text-slate-500">Membership Expiration:</span>{' '}
+                <span className={`font-black ${member.status === 'expired' ? 'text-rose-600' : 'text-teal-700'}`}>
+                  {member.expires_at ? new Date(member.expires_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'No Expiry Set'}
+                  {member.status === 'expired' && ' (Expired)'}
+                </span>
+              </div>
               <div className="sm:col-span-2"><span className="font-bold text-slate-500">Home Street:</span> <span className="text-slate-800 font-semibold">{member.home_street || '—'}</span></div>
               <div><span className="font-bold text-slate-500">City:</span> <span className="text-slate-800 font-semibold">{member.home_city || '—'}</span></div>
               <div><span className="font-bold text-slate-500">State / ZIP:</span> <span className="text-slate-800 font-semibold">{[member.home_state, member.home_zip].filter(Boolean).join(' ') || '—'}</span></div>
@@ -207,23 +221,589 @@ function MemberDetailsModal({ member, onClose }) {
             </div>
           </div>
 
-          {/* Privacy & Policy */}
-          <div className="p-3 bg-teal-50/70 border border-teal-200/70 rounded-xl text-teal-800 font-medium">
-            <span className="font-bold">Privacy Policy Accepted:</span> {member.privacy_policy ? 'Yes' : 'No'}
+          {/* Permissions & Communication Preferences */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-600" /> Permissions &amp; Privacy Preferences
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+              <div><span className="font-bold text-slate-500">Privacy Policy:</span> <span className="text-emerald-700 font-bold">{member.privacy_policy ? 'Accepted' : 'Not Accepted'}</span></div>
+              <div><span className="font-bold text-slate-500">Member Directory:</span> <span className="text-slate-800 font-semibold">{member.directory_visible !== 0 ? 'Visible to Members' : 'Hidden'}</span></div>
+              <div><span className="font-bold text-slate-500">Event Announcements:</span> <span className="text-slate-800 font-semibold">{member.event_announcements !== 0 ? 'Subscribed' : 'Opted out'}</span></div>
+              <div><span className="font-bold text-slate-500">Newsletters &amp; Updates:</span> <span className="text-slate-800 font-semibold">{member.newsletter_opt_in !== 0 ? 'Subscribed' : 'Opted out'}</span></div>
+            </div>
           </div>
 
         </div>
 
         {/* Modal Footer */}
-        <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+        <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            {member.status === 'inactive' && onActivate && (
+              <button
+                onClick={() => {
+                  onActivate(member);
+                  onClose();
+                }}
+                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Reactivate Member
+              </button>
+            )}
+            {member.status === 'active' && onDeactivate && (
+              <button
+                onClick={() => {
+                  onDeactivate(member);
+                  onClose();
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                Deactivate
+              </button>
+            )}
+            {(member.status === 'active' || member.status === 'expired') && onRenew && (
+              <button
+                onClick={() => {
+                  onRenew(member);
+                  onClose();
+                }}
+                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Renew (+1 Year)
+              </button>
+            )}
+            {onEdit && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onEdit(member);
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <Pencil className="w-3.5 h-3.5 text-teal-400" />
+                Edit Profile
+              </button>
+            )}
+          </div>
           <button
             onClick={onClose}
-            className="px-6 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors"
+            className="px-6 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors ml-auto"
           >
             Close
           </button>
         </div>
 
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+//  Edit Member Profile Modal
+// ─────────────────────────────────────────────────────────
+function EditMemberModal({ member, onClose, onSave }) {
+  if (!member) return null;
+
+  const [activeTab, setActiveTab] = useState('personal');
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const [form, setForm] = useState({
+    memberId: member.member_id || '',
+    firstName: member.first_name || '',
+    lastName: member.last_name || '',
+    nickname: member.nickname || '',
+    email: member.email || '',
+    phone: member.phone || '',
+    tier: member.tier || 'professional',
+    status: member.status || 'active',
+    expiresAt: member.expires_at ? member.expires_at.split('T')[0] : '',
+    segStatus: member.seg_status || 'non-member',
+    tgsMember: Boolean(member.tgs_member),
+    isExecutive: Boolean(member.is_executive),
+    eventAnnouncements: member.event_announcements !== undefined ? Boolean(member.event_announcements) : true,
+    newsletterOptIn: member.newsletter_opt_in !== undefined ? Boolean(member.newsletter_opt_in) : true,
+    directoryVisible: member.directory_visible !== undefined ? Boolean(member.directory_visible) : true,
+    companyName: member.company_name || member.company || '',
+    jobTitle: member.job_title || '',
+    boardPosition: member.board_position || '',
+    companyPhone: member.company_phone || '',
+    companyStreet: member.company_street || '',
+    companyCity: member.company_city || '',
+    companyState: member.company_state || '',
+    companyZip: member.company_zip || '',
+    homeStreet: member.home_street || '',
+    homeCity: member.home_city || '',
+    homeState: member.home_state || '',
+    homeZip: member.home_zip || '',
+  });
+
+  const update = (field, val) => {
+    setForm(prev => ({ ...prev, [field]: val }));
+    setErrors(prev => ({ ...prev, [field]: '' }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const newErrors = {};
+    if (!form.firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!form.lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!form.email.trim()) newErrors.email = 'Email address is required';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        nickname: form.nickname.trim() || null,
+        email: form.email.trim(),
+        phone: form.phone.trim() || null,
+        tier: form.tier,
+        status: form.status,
+        expiresAt: form.expiresAt ? `${form.expiresAt} 23:59:59` : null,
+        segStatus: form.segStatus,
+        tgsMember: form.tgsMember,
+        isExecutive: form.isExecutive,
+        companyName: form.companyName.trim() || null,
+        jobTitle: form.jobTitle.trim() || null,
+        boardPosition: form.boardPosition.trim() || null,
+        companyPhone: form.companyPhone.trim() || null,
+        companyStreet: form.companyStreet.trim() || null,
+        companyCity: form.companyCity.trim() || null,
+        companyState: form.companyState.trim() || null,
+        companyZip: form.companyZip.trim() || null,
+        homeStreet: form.homeStreet.trim() || null,
+        homeCity: form.homeCity.trim() || null,
+        homeState: form.homeState.trim() || null,
+        homeZip: form.homeZip.trim() || null,
+      };
+
+      const res = await api.put(`/members/${member.id}`, payload);
+      gstToast.success('Member profile updated successfully');
+      onSave?.(res.data.data);
+      onClose();
+    } catch (err) {
+      console.error('Failed to update member profile:', err);
+      gstToast.error(err.response?.data?.message || 'Failed to update member profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+        {/* Header */}
+        <div className="px-8 py-5 bg-slate-900 text-white flex items-center justify-between relative overflow-hidden shrink-0">
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 border border-teal-500/30 flex items-center justify-center">
+              <Pencil className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white">Edit Member Profile</h2>
+              <p className="text-xs text-slate-400">Member ID #{member.member_id || member.id} · {member.first_name} {member.last_name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition-all relative z-10"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b border-slate-100 bg-slate-50/70 px-8 gap-2 pt-3 shrink-0 overflow-x-auto">
+          {[
+            { id: 'personal', label: 'Personal & Contact' },
+            { id: 'membership', label: 'Membership & Status' },
+            { id: 'company', label: 'Company & Work' },
+            { id: 'home', label: 'Home Address' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2.5 font-bold text-xs border-b-2 whitespace-nowrap transition-all ${
+                activeTab === tab.id
+                  ? 'border-teal-600 text-teal-700 bg-white rounded-t-xl shadow-sm'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-8 space-y-4 overflow-y-auto flex-1 text-xs">
+            {activeTab === 'personal' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">First Name *</label>
+                    <input
+                      type="text"
+                      value={form.firstName}
+                      onChange={(e) => update('firstName', e.target.value)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 ${
+                        errors.firstName ? 'border-rose-400 bg-rose-50' : 'border-slate-200 focus:border-teal-500 focus:ring-teal-500/20'
+                      }`}
+                    />
+                    {errors.firstName && <p className="text-[11px] text-rose-600 mt-1">{errors.firstName}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Last Name *</label>
+                    <input
+                      type="text"
+                      value={form.lastName}
+                      onChange={(e) => update('lastName', e.target.value)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 ${
+                        errors.lastName ? 'border-rose-400 bg-rose-50' : 'border-slate-200 focus:border-teal-500 focus:ring-teal-500/20'
+                      }`}
+                    />
+                    {errors.lastName && <p className="text-[11px] text-rose-600 mt-1">{errors.lastName}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Nickname / Preferred Name</label>
+                    <input
+                      type="text"
+                      value={form.nickname}
+                      onChange={(e) => update('nickname', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Email Address *</label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => update('email', e.target.value)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 ${
+                        errors.email ? 'border-rose-400 bg-rose-50' : 'border-slate-200 focus:border-teal-500 focus:ring-teal-500/20'
+                      }`}
+                    />
+                    {errors.email && <p className="text-[11px] text-rose-600 mt-1">{errors.email}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                      Member ID (Membership #)
+                    </label>
+                    <input
+                      type="text"
+                      value={form.memberId}
+                      onChange={(e) => update('memberId', e.target.value)}
+                      placeholder="e.g. 51307957"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-mono font-bold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Unique 8-digit membership ID or legacy Wild Apricot ID.</p>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Personal Phone</label>
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={(e) => update('phone', e.target.value)}
+                      placeholder="(918) 555-0199"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'membership' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Membership Tier</label>
+                    <select
+                      value={form.tier}
+                      onChange={(e) => update('tier', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-white text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    >
+                      <option value="student">Student</option>
+                      <option value="professional">Professional</option>
+                      <option value="corporate">Corporate</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Account Status</label>
+                    <select
+                      value={form.status}
+                      onChange={(e) => update('status', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-white text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="active">Active</option>
+                      <option value="expired">Expired</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Expiration Date</label>
+                    <input
+                      type="date"
+                      value={form.expiresAt}
+                      onChange={(e) => update('expiresAt', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-white text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">SEG Status</label>
+                    <select
+                      value={form.segStatus}
+                      onChange={(e) => update('segStatus', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-white text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    >
+                      <option value="active">Active Member</option>
+                      <option value="associate">Associate Member</option>
+                      <option value="emeritus">Emeritus Member</option>
+                      <option value="student">Student Member</option>
+                      <option value="non-member">Non-Member</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-3 pt-6">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={form.tgsMember}
+                        onChange={(e) => update('tgsMember', e.target.checked)}
+                        className="w-4 h-4 accent-teal-600 rounded"
+                      />
+                      <span>Active Tulsa Geological Society (TGS) Member</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={form.isExecutive}
+                        onChange={(e) => update('isExecutive', e.target.checked)}
+                        className="w-4 h-4 accent-amber-500 rounded"
+                      />
+                      <span className="flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" /> Executive Board Member
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 space-y-2.5">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                    Communication &amp; Directory Permissions
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-bold p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <input
+                        type="checkbox"
+                        checked={form.eventAnnouncements}
+                        onChange={(e) => update('eventAnnouncements', e.target.checked)}
+                        className="w-4 h-4 accent-teal-600 rounded"
+                      />
+                      <span className="text-[11px]">Event Announcements</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-bold p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <input
+                        type="checkbox"
+                        checked={form.newsletterOptIn}
+                        onChange={(e) => update('newsletterOptIn', e.target.checked)}
+                        className="w-4 h-4 accent-teal-600 rounded"
+                      />
+                      <span className="text-[11px]">Newsletters &amp; Emails</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-bold p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <input
+                        type="checkbox"
+                        checked={form.directoryVisible}
+                        onChange={(e) => update('directoryVisible', e.target.checked)}
+                        className="w-4 h-4 accent-teal-600 rounded"
+                      />
+                      <span className="text-[11px]">Directory Visibility</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'company' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Company Name</label>
+                    <input
+                      type="text"
+                      value={form.companyName}
+                      onChange={(e) => update('companyName', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Job Title</label>
+                    <input
+                      type="text"
+                      value={form.jobTitle}
+                      onChange={(e) => update('jobTitle', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Board Position</label>
+                    <input
+                      type="text"
+                      value={form.boardPosition}
+                      onChange={(e) => update('boardPosition', e.target.value)}
+                      placeholder="e.g. Secretary"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Company Phone</label>
+                  <input
+                    type="tel"
+                    value={form.companyPhone}
+                    onChange={(e) => update('companyPhone', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Company Street Address</label>
+                  <input
+                    type="text"
+                    value={form.companyStreet}
+                    onChange={(e) => update('companyStreet', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Company City</label>
+                    <input
+                      type="text"
+                      value={form.companyCity}
+                      onChange={(e) => update('companyCity', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Company State</label>
+                    <select
+                      value={form.companyState}
+                      onChange={(e) => update('companyState', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-white text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    >
+                      <option value="">— Select State —</option>
+                      {US_STATES.map((s) => (
+                        <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Company ZIP</label>
+                    <input
+                      type="text"
+                      value={form.companyZip}
+                      onChange={(e) => update('companyZip', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'home' && (
+              <div className="space-y-4 animate-fade-in">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Home Street Address</label>
+                  <input
+                    type="text"
+                    value={form.homeStreet}
+                    onChange={(e) => update('homeStreet', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Home City</label>
+                    <input
+                      type="text"
+                      value={form.homeCity}
+                      onChange={(e) => update('homeCity', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Home State</label>
+                    <select
+                      value={form.homeState}
+                      onChange={(e) => update('homeState', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-white text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    >
+                      <option value="">— Select State —</option>
+                      {US_STATES.map((s) => (
+                        <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Home ZIP Code</label>
+                    <input
+                      type="text"
+                      value={form.homeZip}
+                      onChange={(e) => update('homeZip', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs flex items-center gap-2 transition-all shadow-md shadow-teal-600/20 disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              Save Changes
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -236,6 +816,7 @@ function StatusBadge({ status }) {
   const cfg = {
     active:   { dot: 'bg-teal-500',  text: 'text-teal-600',  label: 'Active'   },
     pending:  { dot: 'bg-amber-500', text: 'text-amber-600', label: 'Pending'  },
+    expired:  { dot: 'bg-rose-500',  text: 'text-rose-600',  label: 'Expired'  },
     inactive: { dot: 'bg-slate-300', text: 'text-slate-400', label: 'Inactive' },
   }[status] ?? { dot: 'bg-slate-300', text: 'text-slate-400', label: status };
 
@@ -281,22 +862,47 @@ function ActionBtn({ onClick, disabled, title, children, variant = 'default' }) 
   );
 }
 
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 6) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push('ellipsis-1');
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push('ellipsis-2');
+  }
+  pages.push(totalPages);
+  return pages;
+}
+
 // ─────────────────────────────────────────────────────────
 //  Main AdminMembers Component
 // ─────────────────────────────────────────────────────────
 export default function AdminMembers() {
+  const [searchParams]                    = useSearchParams();
+  const [limit, setLimit]                 = useState(() => parseInt(searchParams.get('limit') || '10', 10));
+  const [page, setPage]                   = useState(() => Math.max(1, parseInt(searchParams.get('page') || '1', 10)));
+  const [search, setSearch]               = useState(() => searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter]   = useState(() => searchParams.get('status') || '');
+  const [tierFilter, setTierFilter]       = useState(() => searchParams.get('tier') || '');
+  const [segFilter, setSegFilter]         = useState(() => searchParams.get('seg_status') || '');
+
   const [members, setMembers]             = useState([]);
   const [pagination, setPagination]       = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading]             = useState(true);
   const [acting, setActing]               = useState({});
-  const [search, setSearch]               = useState('');
-  const [statusFilter, setStatusFilter]   = useState('');
-  const [tierFilter, setTierFilter]       = useState('');
-  const [segFilter, setSegFilter]         = useState('');
-  const [page, setPage]                   = useState(1);
 
   // ── Modals state ──────────────────────────────────────
   const [selectedMemberDetails, setSelectedMemberDetails] = useState(null);
+  const [editingMember, setEditingMember]                 = useState(null);
   const [modal, setModal] = useState({
     open: false, title: '', message: '', confirmLabel: '', variant: 'danger', onConfirm: null,
   });
@@ -306,40 +912,59 @@ export default function AdminMembers() {
   const showConfirm = (opts) => setModal({ open: true, ...opts });
   const closeModal  = () => setModal((m) => ({ ...m, open: false }));
 
+  // Sync with URL query params if changed externally
+  useEffect(() => {
+    const s = searchParams.get('status');
+    if (s !== null && s !== statusFilter) {
+      setStatusFilter(s);
+      setPage(1);
+    }
+  }, [searchParams]);
+
   // ── Fetch ────────────────────────────────────────────
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page, limit: 10 });
+      const params = new URLSearchParams({ page, limit });
       if (search)       params.set('search', search);
       if (statusFilter) params.set('status', statusFilter);
       if (tierFilter)   params.set('tier',   tierFilter);
       if (segFilter)    params.set('seg_status', segFilter);
       const { data } = await api.get(`/members?${params}`);
       setMembers(data.data || []);
-      setPagination(data.pagination || { page: 1, totalPages: 1, total: 0 });
+      const p = data.pagination || {};
+      const total = p.total ?? (data.data || []).length;
+      const totalPages = p.totalPages || p.pages || Math.ceil(total / limit) || 1;
+      setPagination({
+        page: p.page || page,
+        limit: p.limit || limit,
+        total,
+        totalPages,
+      });
     } catch (err) {
       gstToast.error(err.response?.data?.message || 'Failed to load members.');
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter, tierFilter, segFilter]);
+  }, [page, limit, search, statusFilter, tierFilter, segFilter]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
-  useEffect(() => { setPage(1); }, [search, statusFilter, tierFilter, segFilter]);
 
   // ── Actions ──────────────────────────────────────────
   const setMemberActing = (id, val) => setActing((a) => ({ ...a, [id]: val }));
 
   const updateStatus = async (id, status) => {
     setMemberActing(id, true);
+    const member = members.find(m => m.id === id);
+    const prevStatus = member?.status;
     try {
       await api.patch(`/members/${id}/status`, { status });
       setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
-      const labels = { active: 'approved', inactive: 'deactivated', pending: 'set to pending' };
-      const member = members.find(m => m.id === id);
-      const name   = member ? `${member.first_name} ${member.last_name}` : 'Member';
-      gstToast.success(`${name} has been ${labels[status] ?? status}.`);
+      const name = member ? `${member.first_name} ${member.last_name}` : 'Member';
+      const actionText = status === 'active' 
+        ? (prevStatus === 'inactive' ? 'reactivated' : 'approved')
+        : (status === 'inactive' ? 'deactivated' : 'set to pending');
+      gstToast.success(`${name} has been ${actionText}.`);
     } catch (err) {
       gstToast.error(err.response?.data?.message || 'Action failed.');
     } finally {
@@ -384,6 +1009,28 @@ export default function AdminMembers() {
     }
   };
 
+  const renewMember = async (id) => {
+    setMemberActing(id, true);
+    try {
+      await api.patch(`/members/${id}/renew`, { months: 12 });
+      gstToast.success('Membership renewed successfully (+1 Year).');
+      fetchMembers();
+    } catch (err) {
+      gstToast.error(err.response?.data?.message || 'Renewal failed.');
+    } finally {
+      setMemberActing(id, false);
+    }
+  };
+
+  const confirmRenew = (m) =>
+    showConfirm({
+      title:        'Renew Membership',
+      message:      `Renew ${m.first_name} ${m.last_name}'s membership for 1 year? Their status will be set to active and expiration date extended.`,
+      confirmLabel: 'Renew (+1 Year)',
+      variant:      'success',
+      onConfirm:    () => renewMember(m.id),
+    });
+
   const resetPassword = async (id, name) => {
     setMemberActing(id, true);
     try {
@@ -402,6 +1049,15 @@ export default function AdminMembers() {
       title:        'Approve Membership',
       message:      `Approve ${m.first_name} ${m.last_name}'s membership application? They will become an active member.`,
       confirmLabel: 'Approve',
+      variant:      'success',
+      onConfirm:    () => updateStatus(m.id, 'active'),
+    });
+
+  const confirmActivate = (m) =>
+    showConfirm({
+      title:        'Reactivate Member',
+      message:      `Reactivate ${m.first_name} ${m.last_name}? Their membership and user account will be restored to active status.`,
+      confirmLabel: 'Reactivate',
       variant:      'success',
       onConfirm:    () => updateStatus(m.id, 'active'),
     });
@@ -487,6 +1143,24 @@ export default function AdminMembers() {
         <MemberDetailsModal
           member={selectedMemberDetails}
           onClose={() => setSelectedMemberDetails(null)}
+          onRenew={confirmRenew}
+          onActivate={confirmActivate}
+          onDeactivate={confirmDeactivate}
+          onEdit={(m) => setEditingMember(m)}
+        />
+      )}
+
+      {/* Edit Member Profile Modal */}
+      {editingMember && (
+        <EditMemberModal
+          member={editingMember}
+          onClose={() => setEditingMember(null)}
+          onSave={(updated) => {
+            setMembers((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
+            if (selectedMemberDetails?.id === updated.id) {
+              setSelectedMemberDetails(updated);
+            }
+          }}
         />
       )}
 
@@ -573,7 +1247,7 @@ export default function AdminMembers() {
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
                 <input
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                   placeholder="Search name, email, company…"
                   className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
                 />
@@ -581,18 +1255,19 @@ export default function AdminMembers() {
 
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
                 className="py-2 pl-3 pr-7 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
               >
                 <option value="">Status: All</option>
-                <option value="pending">Pending</option>
                 <option value="active">Active</option>
+                <option value="expired">Expired</option>
+                <option value="pending">Pending</option>
                 <option value="inactive">Inactive</option>
               </select>
 
               <select
                 value={tierFilter}
-                onChange={(e) => setTierFilter(e.target.value)}
+                onChange={(e) => { setTierFilter(e.target.value); setPage(1); }}
                 className="py-2 pl-3 pr-7 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
               >
                 <option value="">Tier: All</option>
@@ -603,7 +1278,7 @@ export default function AdminMembers() {
 
               <select
                 value={segFilter}
-                onChange={(e) => setSegFilter(e.target.value)}
+                onChange={(e) => { setSegFilter(e.target.value); setPage(1); }}
                 className="py-2 pl-3 pr-7 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
               >
                 <option value="">SEG: All</option>
@@ -626,7 +1301,7 @@ export default function AdminMembers() {
                     <th className="px-6 py-4">Company &amp; Position</th>
                     <th className="px-6 py-4">SEG Status</th>
                     <th className="px-6 py-4">Tier</th>
-                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Status &amp; Expiration</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -668,7 +1343,12 @@ export default function AdminMembers() {
                                   <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" title="Executive Member" />
                                 )}
                               </div>
-                              <div className="text-[11px] text-slate-400">{m.email}</div>
+                              <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                <span>{m.email}</span>
+                                <span className="font-mono text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                  #{m.member_id || m.id}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -690,6 +1370,16 @@ export default function AdminMembers() {
 
                         <td className="px-6 py-4">
                           <StatusBadge status={m.status} />
+                          {m.expires_at ? (
+                            <div className={`text-[10px] mt-1 font-medium ${
+                              m.status === 'expired' ? 'text-rose-600 font-bold' : 'text-slate-400'
+                            }`}>
+                              {m.status === 'expired' ? 'Expired ' : 'Exp: '}
+                              {new Date(m.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </div>
+                          ) : (
+                            <div className="text-[10px] mt-1 text-slate-400">No expiration</div>
+                          )}
                         </td>
 
                         <td className="px-6 py-4 text-right">
@@ -702,21 +1392,39 @@ export default function AdminMembers() {
                               <Eye className="w-4 h-4 text-teal-600" />
                             </ActionBtn>
 
+                            {/* Edit Member Profile */}
+                            <ActionBtn
+                              title="Edit member profile"
+                              onClick={() => setEditingMember(m)}
+                            >
+                              <Pencil className="w-4 h-4 text-blue-600" />
+                            </ActionBtn>
+
                             {isActing ? (
                               <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
                             ) : (
                               <>
-                                {m.status !== 'active' && (
+                                {(m.status === 'active' || m.status === 'expired') && (
+                                  <ActionBtn variant="success" title="Renew (+1 Year)" onClick={() => confirmRenew(m)}>
+                                    <RefreshCw className="w-4 h-4 text-emerald-600" />
+                                  </ActionBtn>
+                                )}
+                                {m.status === 'pending' && (
                                   <ActionBtn variant="success" title="Approve membership" onClick={() => confirmApprove(m)}>
-                                    <CheckCircle2 className="w-4 h-4" />
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                  </ActionBtn>
+                                )}
+                                {m.status === 'inactive' && (
+                                  <ActionBtn variant="success" title="Reactivate membership" onClick={() => confirmActivate(m)}>
+                                    <CheckCircle2 className="w-4 h-4 text-teal-600" />
                                   </ActionBtn>
                                 )}
                                 {m.status === 'active' && (
                                   <ActionBtn variant="danger" title="Deactivate membership" onClick={() => confirmDeactivate(m)}>
-                                    <XCircle className="w-4 h-4" />
+                                    <XCircle className="w-4 h-4 text-rose-500" />
                                   </ActionBtn>
                                 )}
-                                {m.status === 'active' && (
+                                {(m.status === 'active' || m.status === 'inactive') && (
                                   <ActionBtn title="Reset to pending" onClick={() => confirmSetPending(m)}>
                                     <AlertCircle className="w-4 h-4" />
                                   </ActionBtn>
@@ -747,33 +1455,88 @@ export default function AdminMembers() {
               </table>
             </div>
 
-            {/* Pagination Bar */}
-            {pagination.totalPages > 1 && (
-              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                <p className="text-xs text-slate-400 font-medium">
-                  Showing <span className="font-bold text-slate-800">{members.length}</span> of <span className="font-bold text-slate-800">{pagination.total}</span> members
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:bg-white disabled:opacity-30"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="text-xs font-bold text-slate-600">
-                    Page {pagination.page} of {pagination.totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                    disabled={page === pagination.totalPages}
-                    className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:bg-white disabled:opacity-30"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+            {/* Pagination & Results Bar */}
+            {(() => {
+              const total = pagination.total || members.length || 0;
+              const totalPages = pagination.totalPages || pagination.pages || Math.ceil(total / limit) || 1;
+              const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+              const endItem = Math.min(page * limit, total);
+
+              return (
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-xs text-slate-500 font-medium">
+                      Showing <span className="font-bold text-slate-900">{startItem}–{endItem}</span> of <span className="font-bold text-slate-900">{total}</span> members
+                    </p>
+                    <div className="flex items-center gap-1.5 pl-3 border-l border-slate-200">
+                      <label htmlFor="member-limit-select" className="text-xs text-slate-400 font-medium">Rows:</label>
+                      <select
+                        id="member-limit-select"
+                        value={limit}
+                        onChange={(e) => {
+                          setLimit(Number(e.target.value));
+                          setPage(1);
+                        }}
+                        className="py-1 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                      >
+                        <option value={10}>10 / page</option>
+                        <option value={25}>25 / page</option>
+                        <option value={50}>50 / page</option>
+                        <option value={100}>100 (All) / page</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="p-1.5 px-2.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent font-bold text-xs flex items-center gap-1 transition-all"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Prev</span>
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {getPageNumbers(page, totalPages).map((pNum, idx) => {
+                          if (typeof pNum === 'string') {
+                            return (
+                              <span key={`el-${idx}`} className="px-1 text-xs font-bold text-slate-400">
+                                …
+                              </span>
+                            );
+                          }
+                          const isActive = pNum === page;
+                          return (
+                            <button
+                              key={pNum}
+                              onClick={() => setPage(pNum)}
+                              className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
+                                isActive
+                                  ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/30'
+                                  : 'text-slate-600 hover:bg-white border border-transparent hover:border-slate-200'
+                              }`}
+                            >
+                              {pNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="p-1.5 px-2.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent font-bold text-xs flex items-center gap-1 transition-all"
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
         </div>

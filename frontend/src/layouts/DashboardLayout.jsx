@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Settings,
-  Globe, LogOut, Plus, Mail
+  LogOut, Plus, Mail
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -69,15 +69,17 @@ export default function DashboardLayout() {
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen">
         {/* Logo */}
         <div className="p-8">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center shadow-lg">
-              <Globe className="w-4 h-4 text-white" />
-            </div>
+          <Link to="/" className="flex items-center gap-3 group">
+            <img 
+              src="/assets/new_logo.png" 
+              alt="GST Logo" 
+              className="w-9 h-9 object-contain drop-shadow shrink-0 group-hover:scale-105 transition-transform" 
+            />
             <div>
               <div className="text-slate-900 font-black text-sm tracking-tight">GST</div>
               <div className="text-[9px] text-teal-500 font-bold uppercase tracking-widest">Member Portal</div>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* User info */}

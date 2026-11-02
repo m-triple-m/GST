@@ -48,6 +48,7 @@ import AdminSettings from './pages/admin/AdminSettings';
 import AdminContactInquiries from './pages/admin/AdminContactInquiries';
 import AdminAccounts from './pages/admin/AdminAccounts';
 import AdminSponsors from './pages/admin/AdminSponsors';
+import AdminChangeLogs from './pages/admin/AdminChangeLogs';
 
 export default function App() {
   return (
@@ -157,6 +158,7 @@ export default function App() {
                 <Route path="/admin/profile" element={<SettingsPage />} />
                 <Route path="/admin/contact-inquiries" element={<AdminContactInquiries />} />
                 <Route path="/admin/sponsors" element={<AdminSponsors />} />
+                <Route path="/admin/changelogs" element={<AdminChangeLogs />} />
                 <Route path="/admin/accounts" element={<AdminAccounts />} />
               </Route>
             </Route>

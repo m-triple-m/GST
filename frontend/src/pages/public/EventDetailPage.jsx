@@ -4,7 +4,7 @@ import {
   Calendar, MapPin, Clock, Users, ArrowLeft,
   ExternalLink, Share2, Download, ChevronRight, Tag, Info,
   PlayCircle, Image as ImageIcon, CheckCircle2,
-  ChevronLeft, Loader2, X, ShoppingCart, CheckCircle
+  ChevronLeft, Loader2, X, ShoppingCart, CheckCircle, Clock3
 } from 'lucide-react';
 import api from '../../api';
 import { useCart } from '../../context/CartContext';
@@ -24,6 +24,7 @@ export default function EventDetailPage() {
   const { addToCart, items } = useCart();
   const { isAuthenticated } = useAuth();
   const [globalSettings, setGlobalSettings] = useState({});
+  const [memberStatus, setMemberStatus] = useState(null);
 
   // Check if this event is already in the cart
   const inCart = items.some(i => i.eventId === Number(id));
@@ -74,6 +75,14 @@ export default function EventDetailPage() {
           } catch (err) {
             // Ignore if checking registrations fails
           }
+
+          // Fetch member profile to check pending status
+          try {
+            const profileData = await api.get('/members/me');
+            setMemberStatus(profileData.data.data?.status || null);
+          } catch (err) {
+            // Ignore if profile fetch fails
+          }
         }
 
       } catch (err) {
@@ -107,36 +116,6 @@ export default function EventDetailPage() {
     );
   }
 
-  const agenda = event.event_type === 'Technical Luncheon'
-    ? [
-        { time: '11:30 AM', item: 'Registration & Networking' },
-        { time: '12:00 PM', item: 'Lunch Served' },
-        { time: '12:15 PM', item: 'GST Announcements & Updates' },
-        { time: '12:30 PM', item: 'Technical Presentation' },
-        { time: '1:00 PM', item: 'Q&A Session' },
-        { time: '1:15 PM', item: 'Adjourn' },
-      ]
-    : [
-        { time: '7:00 AM', item: 'Shotgun Start — Registration & Check-In' },
-        { time: '7:30 AM', item: 'Welcome & Sponsor Recognition' },
-        { time: '8:00 AM', item: 'Tournament Begins' },
-        { time: '1:00 PM', item: 'Lunch & Awards Ceremony' },
-        { time: '2:30 PM', item: 'Scholarship Presentation' },
-        { time: '3:00 PM', item: 'Closing Remarks' },
-      ];
-
-  const nextImage = () => {
-    if (event.gallery && event.gallery.length) {
-      setActiveImage((prev) => (prev + 1) % event.gallery.length);
-    }
-  };
-
-  const prevImage = () => {
-    if (event.gallery && event.gallery.length) {
-      setActiveImage((prev) => (prev - 1 + event.gallery.length) % event.gallery.length);
-    }
-  };
-
   const formatEventTime = (timeStr) => {
     if (!timeStr) return null;
     const parts = String(timeStr).split(':');
@@ -156,6 +135,81 @@ export default function EventDetailPage() {
     ? `${startTimeFormatted}${endTimeFormatted ? ` – ${endTimeFormatted}` : ''}`
     : 'TBD';
   const locName = event.location_name || (event.location_type === 'online' ? 'Online' : (event.location_address || (event.location_type === 'hybrid' ? 'Hybrid (In Person & Online)' : 'In Person')));
+
+  // Smart Agenda Resolution
+  let agenda = [];
+  if (event.agenda) {
+    if (Array.isArray(event.agenda)) {
+      agenda = event.agenda;
+    } else if (typeof event.agenda === 'string') {
+      try {
+        const parsed = JSON.parse(event.agenda);
+        if (Array.isArray(parsed)) agenda = parsed;
+      } catch (e) {
+        agenda = event.agenda.split('\n').filter(Boolean).map((line, idx) => ({
+          time: `Item ${idx + 1}`,
+          item: line.trim()
+        }));
+      }
+    }
+  }
+
+  if (agenda.length === 0) {
+    const isLuncheon = event.event_type === 'Technical Luncheon' || (event.title && event.title.toLowerCase().includes('luncheon'));
+    const isGolf = event.event_type === 'Golf Tournament' || (event.title && event.title.toLowerCase().includes('golf'));
+    const isWorkshop = event.event_type === 'Workshop' || event.event_type === 'Seminar' || event.event_type === 'Short Course';
+
+    if (isLuncheon) {
+      agenda = [
+        { time: '11:30 AM', item: 'Registration & Networking', description: 'Check-in, meet fellow geoscientists and colleagues.' },
+        { time: '12:00 PM', item: 'Lunch Served', description: 'Plated lunch and informal table discussions.' },
+        { time: '12:15 PM', item: 'GST Announcements & Updates', description: 'Society announcements, upcoming events, and leadership notes.' },
+        { time: '12:30 PM', item: event.speaker_name ? `Technical Presentation (${event.speaker_name})` : 'Technical Presentation', description: event.title || 'Featured geophysical presentation and industry case studies.' },
+        { time: '1:00 PM', item: 'Interactive Q&A Session', description: 'Open audience discussion and technical Q&A with speaker.' },
+        { time: '1:15 PM', item: 'Adjourn & Post-Session Networking', description: 'Closing remarks and post-luncheon networking.' },
+      ];
+    } else if (isGolf) {
+      agenda = [
+        { time: '7:00 AM', item: 'Player Check-In & Practice Range', description: 'Check-in, breakfast snacks, and warm-up range open.' },
+        { time: '7:30 AM', item: 'Welcome & Sponsor Recognition', description: 'Tournament rules briefing and partner acknowledgments.' },
+        { time: '8:00 AM', item: 'Shotgun Start', description: 'Scramble tournament begins across the course.' },
+        { time: '1:00 PM', item: 'Lunch & Networking Buffet', description: 'Post-round banquet and refreshments.' },
+        { time: '2:00 PM', item: 'Awards & Scholarship Presentation', description: 'Trophy ceremony and student scholarship awards.' },
+        { time: '3:00 PM', item: 'Closing Remarks & Adjourn', description: 'Official conclusion of the tournament.' },
+      ];
+    } else if (isWorkshop) {
+      agenda = [
+        { time: '8:30 AM', item: 'Check-In & Morning Coffee', description: 'Badge pickup, coffee, and workshop materials distribution.' },
+        { time: '9:00 AM', item: 'Session I: Fundamentals & Overview', description: 'Core technical concepts and foundational methodology.' },
+        { time: '10:30 AM', item: 'Coffee & Networking Break', description: '15-minute interlude.' },
+        { time: '10:45 AM', item: 'Session II: Applied Workflows & Datasets', description: 'Hands-on review and interpretation methodologies.' },
+        { time: '12:00 PM', item: 'Catered Lunch', description: 'Lunch provided for all registered participants.' },
+        { time: '1:00 PM', item: 'Session III: Practical Exercises & Synthesis', description: 'Interactive case studies and problem-solving.' },
+        { time: '3:30 PM', item: 'Discussion & Wrap-Up', description: 'Open forum, Q&A, resource distribution, and certificates.' },
+      ];
+    } else {
+      agenda = [
+        { time: startTimeFormatted || 'Start', item: 'Doors Open & Attendee Check-In', description: 'Welcome and check-in desk opens.' },
+        { time: 'Opening', item: 'Welcome & Introductory Remarks', description: 'Opening statements and society overview.' },
+        { time: 'Main', item: event.speaker_name ? `Presentation by ${event.speaker_name}` : 'Main Event Program', description: event.title || 'Key technical content and discussion.' },
+        { time: 'Discussion', item: 'Open Q&A & Group Exchange', description: 'Attendee participation and collaborative discussion.' },
+        { time: endTimeFormatted || 'Conclusion', item: 'Wrap-Up & Adjourn', description: 'Event concludes.' },
+      ];
+    }
+  }
+
+  const nextImage = () => {
+    if (event.gallery && event.gallery.length) {
+      setActiveImage((prev) => (prev + 1) % event.gallery.length);
+    }
+  };
+
+  const prevImage = () => {
+    if (event.gallery && event.gallery.length) {
+      setActiveImage((prev) => (prev - 1 + event.gallery.length) % event.gallery.length);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -374,26 +428,61 @@ export default function EventDetailPage() {
             )}
 
             {/* Agenda */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
-              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-teal-500" />
-                Event Agenda
-              </h2>
-              <div className="relative">
-                <div className="absolute left-[4.5rem] top-0 bottom-0 w-px bg-gradient-to-b from-teal-500 to-slate-200" />
-                <div className="space-y-5">
-                  {agenda.map(({ time, item }, i) => (
-                    <div key={i} className="flex items-start gap-5">
-                      <div className="w-16 text-right text-xs font-bold text-teal-600 pt-1 shrink-0">{time}</div>
-                      <div className="relative flex items-start gap-4 pl-6">
-                        <div className="absolute -left-2.5 w-5 h-5 rounded-full bg-white border-2 border-teal-500 flex items-center justify-center shadow">
-                          <div className="w-2 h-2 rounded-full bg-teal-500" />
-                        </div>
-                        <p className="text-slate-700 text-sm font-medium">{item}</p>
+            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800">Event Agenda</h2>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Schedule & Timeline</p>
+                  </div>
+                </div>
+                {formattedTime !== 'TBD' && (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+                    <Clock className="w-3.5 h-3.5 text-teal-600" />
+                    {formattedTime}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                {agenda.map(({ time, item, description }, i) => (
+                  <div key={i} className="flex group relative">
+                    {/* Time Column */}
+                    <div className="w-24 sm:w-28 shrink-0 pt-0.5 pr-3 sm:pr-4 text-right">
+                      <span className="inline-block text-xs sm:text-sm font-bold text-slate-600 group-hover:text-teal-700 transition-colors">
+                        {time}
+                      </span>
+                    </div>
+
+                    {/* Timeline Node & Connector Line */}
+                    <div className="relative flex flex-col items-center px-1 shrink-0">
+                      {/* Node Dot */}
+                      <div className="w-3.5 h-3.5 rounded-full border-2 border-teal-500 bg-white group-hover:bg-teal-500 group-hover:border-teal-600 group-hover:scale-125 transition-all duration-200 z-10 shadow-sm mt-1" />
+                      
+                      {/* Connector Line (stops before last item) */}
+                      {i < agenda.length - 1 && (
+                        <div className="w-0.5 bg-slate-200 group-hover:bg-teal-200 transition-colors flex-1 my-1" />
+                      )}
+                    </div>
+
+                    {/* Content Item */}
+                    <div className={`flex-1 pl-3 sm:pl-4 ${i === agenda.length - 1 ? 'pb-1' : 'pb-5 sm:pb-6'}`}>
+                      <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 group-hover:bg-teal-50/40 group-hover:border-teal-100 transition-all duration-200">
+                        <h4 className="text-slate-800 font-bold text-sm sm:text-base group-hover:text-teal-950 transition-colors">
+                          {item}
+                        </h4>
+                        {description && (
+                          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                            {description}
+                          </p>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -457,6 +546,22 @@ export default function EventDetailPage() {
                       </div>
                       <Link to="/dashboard" className="text-xs text-teal-600 hover:text-teal-700 hover:underline">
                         View in Dashboard
+                      </Link>
+                    </div>
+                  ) : isAuthenticated && memberStatus === 'pending' ? (
+                    <div className="w-full p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 mb-4 space-y-2.5">
+                      <div className="flex items-center gap-2 font-black uppercase tracking-wider text-xs text-amber-900">
+                        <Clock3 className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        Application Pending Review
+                      </div>
+                      <p className="text-xs text-amber-700 leading-relaxed">
+                        Your membership application is currently awaiting admin approval. Event registration will unlock once your account has been accepted.
+                      </p>
+                      <Link
+                        to="/dashboard"
+                        className="inline-flex items-center gap-1 font-bold text-amber-900 hover:text-amber-950 text-xs pt-1"
+                      >
+                        Check Dashboard Status <ChevronRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   ) : (

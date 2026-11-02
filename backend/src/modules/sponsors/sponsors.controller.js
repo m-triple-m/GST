@@ -24,7 +24,7 @@ const listEnquiries = async (req, res, next) => {
 const updateEnquiryStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-    if (!status || !['new', 'in_review', 'approved', 'declined'].includes(status)) {
+    if (!status || !['new', 'read', 'in_review', 'approved', 'declined'].includes(status)) {
       return next(require('../../utils/ApiError').badRequest('Invalid status'));
     }
     await service.updateEnquiryStatus(Number(req.params.id), status);

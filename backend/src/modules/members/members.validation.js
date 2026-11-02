@@ -2,6 +2,8 @@
 const { body, query } = require('express-validator');
 
 const applyValidation = [
+  body('member_id').optional().isString().trim(),
+  body('memberId').optional().isString().trim(),
   body('firstName').trim().notEmpty().withMessage('First name is required'),
   body('lastName').trim().notEmpty().withMessage('Last name is required'),
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
@@ -15,17 +17,55 @@ const applyValidation = [
   body('privacyPolicy')
     .custom((val) => val === true || val === 1 || val === 'true')
     .withMessage('You must agree to the Privacy Policy and Membership Terms'),
+  body('eventAnnouncements').optional().isBoolean(),
+  body('event_announcements').optional().isBoolean(),
+  body('newsletterOptIn').optional().isBoolean(),
+  body('newsletter_opt_in').optional().isBoolean(),
+  body('directoryVisible').optional().isBoolean(),
+  body('directory_visible').optional().isBoolean(),
+  body('isRetired').optional().isBoolean(),
   body('companyName')
     .custom((val, { req }) => {
+      if (req.body.isRetired) return true;
       if (!val && !req.body.company) throw new Error('Company name is required');
       return true;
     }),
-  body('jobTitle').trim().notEmpty().withMessage('Job title is required'),
-  body('companyPhone').trim().notEmpty().withMessage('Company phone is required'),
-  body('companyStreet').trim().notEmpty().withMessage('Company street address is required'),
-  body('companyCity').trim().notEmpty().withMessage('Company city is required'),
-  body('companyState').trim().notEmpty().withMessage('Company state is required'),
-  body('companyZip').trim().notEmpty().withMessage('Company ZIP code is required'),
+  body('jobTitle')
+    .custom((val, { req }) => {
+      if (req.body.isRetired) return true;
+      if (!val || !val.trim()) throw new Error('Job title is required');
+      return true;
+    }),
+  body('companyPhone')
+    .custom((val, { req }) => {
+      if (req.body.isRetired) return true;
+      if (!val || !val.trim()) throw new Error('Company phone is required');
+      return true;
+    }),
+  body('companyStreet')
+    .custom((val, { req }) => {
+      if (req.body.isRetired) return true;
+      if (!val || !val.trim()) throw new Error('Company street address is required');
+      return true;
+    }),
+  body('companyCity')
+    .custom((val, { req }) => {
+      if (req.body.isRetired) return true;
+      if (!val || !val.trim()) throw new Error('Company city is required');
+      return true;
+    }),
+  body('companyState')
+    .custom((val, { req }) => {
+      if (req.body.isRetired) return true;
+      if (!val || !val.trim()) throw new Error('Company state is required');
+      return true;
+    }),
+  body('companyZip')
+    .custom((val, { req }) => {
+      if (req.body.isRetired) return true;
+      if (!val || !val.trim()) throw new Error('Company ZIP code is required');
+      return true;
+    }),
   body('boardPosition').optional().isString().trim(),
   body('segStatus')
     .notEmpty()
@@ -52,18 +92,34 @@ const applyValidation = [
 
 const updateStatusValidation = [
   body('status')
-    .isIn(['pending', 'active', 'inactive'])
-    .withMessage('Status must be pending, active, or inactive'),
+    .isIn(['pending', 'active', 'inactive', 'expired'])
+    .withMessage('Status must be pending, active, inactive, or expired'),
+  body('expires_at')
+    .optional({ nullable: true })
+    .isISO8601()
+    .withMessage('expires_at must be a valid date'),
 ];
 
 const listQueryValidation = [
   query('page').optional().isInt({ min: 1 }).toInt(),
   query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
   query('search').optional().isString().trim(),
-  query('status').optional().isIn(['pending', 'active', 'inactive']),
+  query('status').optional().isIn(['pending', 'active', 'inactive', 'expired']),
   query('tier').optional().isIn(['student', 'professional', 'corporate']),
-  query('sort').optional().isIn(['joined_at', 'first_name', 'last_name', 'status']),
+  query('sort').optional().isIn(['joined_at', 'expires_at', 'member_id', 'first_name', 'last_name', 'status', 'company_name', 'tier', 'seg_status']),
   query('order').optional().isIn(['asc', 'desc']),
+];
+
+const renewValidation = [
+  body('months').optional().isInt({ min: 1, max: 60 }).withMessage('Months must be an integer between 1 and 60'),
+];
+
+const expirationValidation = [
+  body('expires_at')
+    .notEmpty()
+    .withMessage('expires_at is required')
+    .isISO8601()
+    .withMessage('expires_at must be a valid date'),
 ];
 
 const toggleExecutiveValidation = [
@@ -72,4 +128,7 @@ const toggleExecutiveValidation = [
     .withMessage('is_executive must be a boolean'),
 ];
 
-module.exports = { applyValidation, updateStatusValidation, listQueryValidation, toggleExecutiveValidation };
+module.exports = {
+  applyValidation, updateStatusValidation, listQueryValidation,
+  renewValidation, expirationValidation, toggleExecutiveValidation
+};

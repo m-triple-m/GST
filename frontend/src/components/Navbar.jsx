@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Globe, Menu, X, ChevronDown, LogIn, ShoppingCart, LogOut } from 'lucide-react';
+import { Menu, X, ChevronDown, LogIn, ShoppingCart, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -80,10 +80,12 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-18 py-3">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="relative">
-              <div className="w-10 h-10 rounded-lg bg-teal-500 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-200">
-                <Globe className="w-5 h-5 text-white" strokeWidth={2} />
-              </div>
+            <div className="relative shrink-0">
+              <img
+                src="/assets/new_logo.png"
+                alt="GST Logo"
+                className="w-10 h-10 sm:w-11 sm:h-11 object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200"
+              />
             </div>
             <div className="leading-tight">
               <div className="text-white font-bold text-sm tracking-wide">GST</div>

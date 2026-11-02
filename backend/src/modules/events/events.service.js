@@ -3,6 +3,7 @@ const repo     = require('./events.repository');
 const ApiError = require('../../utils/ApiError');
 const mailerService = require('../../services/mailer.service');
 const { buildPagination } = require('../../utils/response');
+const membersRepo = require('../members/members.repository');
 
 const listEvents = async (query) => {
   const page   = Math.max(1, query.page  || 1);
@@ -72,6 +73,20 @@ const registerForEvent = async (eventId, data, userId) => {
   if (!event) throw ApiError.notFound('Event not found');
   if (event.status !== 'upcoming') throw ApiError.badRequest('Event is not open for registration');
 
+  // ── Pending member gate ───────────────────────────────────────────────
+  // If the request is authenticated, look up the member record and block
+  // pending members from booking until an admin approves their application.
+  if (userId) {
+    const member = await membersRepo.getMemberByUserId(userId);
+    if (member && member.status === 'pending') {
+      throw ApiError.forbidden(
+        'Your membership application is still under review. ' +
+        'You will be able to register for events once an admin approves your account.'
+      );
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────
+
   // Check capacity
   if (event.capacity > 0) {
     const count = await repo.countRegistrations(eventId);
@@ -105,6 +120,7 @@ const getEventRegistrations = async (eventId) => {
   let totalParticipants = 0;
   let totalRevenue = 0;
   let pendingRevenue = 0;
+  let pendingAttendeesCount = 0;
   let refundedAmount = 0;
   let membersCount = 0;
   let guestsCount = 0;
@@ -118,21 +134,32 @@ const getEventRegistrations = async (eventId) => {
 
     if (r.payment_status !== 'refunded') {
       totalParticipants += partySize;
+
+      if (r.attendee_type === 'member') {
+        membersCount += 1;
+      } else {
+        guestsCount += 1;
+      }
+      guestsCount += guestList.length;
     }
 
-    const amount = Number(r.amount_paid) || 0;
+    // Calculate unit price and expected amount as fallback if amount_paid is 0
+    const ticketCost = r.attendee_type === 'guest'
+      ? (Number(event.non_member_ticket_cost) || Number(event.ticket_cost) || 0)
+      : (Number(event.member_ticket_cost) || Number(event.ticket_cost) || 0);
+    const expectedAmount = ticketCost * partySize;
+    const amount = Number(r.amount_paid) > 0 ? Number(r.amount_paid) : expectedAmount;
+
+    r.expected_amount = expectedAmount;
+    r.effective_amount = amount;
+
     if (r.payment_status === 'paid') {
       totalRevenue += amount;
     } else if (r.payment_status === 'pending') {
       pendingRevenue += amount;
+      pendingAttendeesCount += partySize;
     } else if (r.payment_status === 'refunded') {
       refundedAmount += amount;
-    }
-
-    if (r.attendee_type === 'member') {
-      membersCount += 1;
-    } else {
-      guestsCount += 1;
     }
 
     if (paymentStatusCounts[r.payment_status] !== undefined) {
@@ -152,11 +179,20 @@ const getEventRegistrations = async (eventId) => {
     total_participants: totalParticipants,
     total_revenue: totalRevenue,
     pending_revenue: pendingRevenue,
+    pending_amount: pendingRevenue,
     refunded_amount: refundedAmount,
     capacity,
     fill_percentage: fillPercentage,
     members_count: membersCount,
+    member_count: membersCount,
     guests_count: guestsCount,
+    guest_count: guestsCount,
+    paid_registrations: paymentStatusCounts.paid,
+    pending_registrations: paymentStatusCounts.pending,
+    pending_orders: paymentStatusCounts.pending,
+    pending_attendees_count: pendingAttendeesCount,
+    refunded_registrations: paymentStatusCounts.refunded,
+    failed_registrations: paymentStatusCounts.failed,
     payment_status_counts: paymentStatusCounts,
     payment_method_counts: paymentMethodCounts,
   };

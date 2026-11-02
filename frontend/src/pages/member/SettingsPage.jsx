@@ -8,11 +8,14 @@ import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import ImageCropModal from '../../components/ImageCropModal';
 import { SEG_STATUS_OPTIONS } from '../public/membership.config';
+import { gstToast } from '../../utils/toast';
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [renewing, setRenewing] = useState(false);
+  const [memberProfile, setMemberProfile] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -40,6 +43,9 @@ export default function SettingsPage() {
     home_zip: '',
     avatar_url: '',
     privacy_policy: 0,
+    event_announcements: 1,
+    newsletter_opt_in: 1,
+    directory_visible: 1,
 
     company_name: '',
     company_street: '',
@@ -68,6 +74,7 @@ export default function SettingsPage() {
         const { data } = await api.get('/members/me');
         if (data.data) {
           const m = data.data;
+          setMemberProfile(m);
           let parsedEdu = [];
           if (Array.isArray(m.education)) {
             parsedEdu = m.education;
@@ -93,6 +100,9 @@ export default function SettingsPage() {
             home_zip: m.home_zip || '',
             avatar_url: m.avatar_url || '',
             privacy_policy: m.privacy_policy || 0,
+            event_announcements: m.event_announcements !== undefined && m.event_announcements !== null ? Number(m.event_announcements) : 1,
+            newsletter_opt_in: m.newsletter_opt_in !== undefined && m.newsletter_opt_in !== null ? Number(m.newsletter_opt_in) : 1,
+            directory_visible: m.directory_visible !== undefined && m.directory_visible !== null ? Number(m.directory_visible) : 1,
 
             company_name: m.company_name || m.company || '',
             company_street: m.company_street || '',
@@ -280,6 +290,83 @@ export default function SettingsPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        
+        {/* ── Card 0: Membership Standing & Expiration ── */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Membership Details</span>
+                {(memberProfile?.member_id || memberProfile?.id) && (
+                  <span className="font-mono text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                    Member ID: #{memberProfile?.member_id || memberProfile?.id}
+                  </span>
+                )}
+              </div>
+              <h2 className="text-xl font-black text-slate-900 capitalize mt-0.5">
+                {memberProfile?.tier || 'Professional'} Membership
+              </h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                memberProfile?.status === 'expired'
+                  ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                  : memberProfile?.status === 'active'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+              }`}>
+                {memberProfile?.status === 'expired' ? 'Expired' : memberProfile?.status === 'active' ? 'Active' : (memberProfile?.status || 'Pending')}
+              </span>
+              <button
+                type="button"
+                disabled={renewing}
+                onClick={async () => {
+                  setRenewing(true);
+                  try {
+                    await api.post('/members/me/renew', { months: 12 });
+                    gstToast.success('Membership renewed successfully (+1 Year)!');
+                    const { data } = await api.get('/members/me');
+                    if (data.data) setMemberProfile(data.data);
+                    window.dispatchEvent(new Event('profileUpdated'));
+                  } catch (err) {
+                    gstToast.error(err.response?.data?.message || 'Renewal failed.');
+                  } finally {
+                    setRenewing(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl btn-teal text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${renewing ? 'animate-spin' : ''}`} />
+                {renewing ? 'Renewing…' : 'Renew (+1 Year)'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 text-xs">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Member Since</span>
+              <span className="font-bold text-slate-800 text-sm">
+                {memberProfile?.joined_at ? new Date(memberProfile.joined_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+              </span>
+            </div>
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Expiration Date</span>
+              <span className={`font-black text-sm ${memberProfile?.status === 'expired' ? 'text-rose-600' : 'text-slate-900'}`}>
+                {memberProfile?.expires_at ? new Date(memberProfile.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No Expiry Set'}
+              </span>
+            </div>
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Status / Standing</span>
+              <span className={`font-black text-sm ${
+                memberProfile?.status === 'expired'
+                  ? 'text-rose-600'
+                  : 'text-teal-600'
+              }`}>
+                {memberProfile?.status === 'expired' ? 'Expired — Renewal required' : 'In Good Standing'}
+              </span>
+            </div>
+          </div>
+        </div>
         
         {/* ── Card 1: Avatar & Personal Info ── */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
@@ -666,6 +753,72 @@ export default function SettingsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* ── Card 4: Permissions & Privacy Preferences ── */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-900">Permissions &amp; Communication Preferences</h2>
+              <p className="text-xs text-slate-400">Control your directory presence, email subscriptions, and announcements.</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:bg-slate-100/60 transition-colors">
+              <input
+                type="checkbox"
+                checked={Boolean(formData.directory_visible)}
+                onChange={(e) => setFormData(prev => ({ ...prev, directory_visible: e.target.checked ? 1 : 0 }))}
+                className="w-4 h-4 mt-0.5 accent-teal-600 rounded"
+              />
+              <div>
+                <span className="text-xs font-bold text-slate-800 block">
+                  Member Directory Visibility
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  Allow other active GST members to view your name, professional title, and company in the member directory.
+                </span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:bg-slate-100/60 transition-colors">
+              <input
+                type="checkbox"
+                checked={Boolean(formData.event_announcements)}
+                onChange={(e) => setFormData(prev => ({ ...prev, event_announcements: e.target.checked ? 1 : 0 }))}
+                className="w-4 h-4 mt-0.5 accent-teal-600 rounded"
+              />
+              <div>
+                <span className="text-xs font-bold text-slate-800 block">
+                  Event Announcements
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  Receive email invitations and updates for monthly technical luncheons, symposiums, and short courses.
+                </span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer p-4 rounded-2xl bg-slate-50 border border-slate-200/80 hover:bg-slate-100/60 transition-colors">
+              <input
+                type="checkbox"
+                checked={Boolean(formData.newsletter_opt_in)}
+                onChange={(e) => setFormData(prev => ({ ...prev, newsletter_opt_in: e.target.checked ? 1 : 0 }))}
+                className="w-4 h-4 mt-0.5 accent-teal-600 rounded"
+              />
+              <div>
+                <span className="text-xs font-bold text-slate-800 block">
+                  Member Emails &amp; Newsletters
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  Receive GST newsletters, president&rsquo;s message, and election/annual meeting notices.
+                </span>
+              </div>
+            </label>
           </div>
         </div>
 

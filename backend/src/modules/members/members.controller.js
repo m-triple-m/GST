@@ -74,12 +74,46 @@ const getMemberById = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const updateMemberById = async (req, res, next) => {
+  try {
+    const data = await service.updateMemberById(Number(req.params.id), req.body);
+    sendSuccess(res, 200, 'Member profile updated successfully', data);
+  } catch (err) { next(err); }
+};
+
 const updateMemberStatus = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return next(errors.array());
-    await service.updateMemberStatus(Number(req.params.id), req.body.status);
+    await service.updateMemberStatus(Number(req.params.id), req.body.status, req.body.expires_at);
     sendSuccess(res, 200, 'Member status updated');
+  } catch (err) { next(err); }
+};
+
+const renewMember = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return next(errors.array());
+    const data = await service.renewMember(Number(req.params.id), req.body.months || 12);
+    sendSuccess(res, 200, 'Membership renewed successfully', data);
+  } catch (err) { next(err); }
+};
+
+const renewMyMembership = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return next(errors.array());
+    const data = await service.renewMyMembership(req.user.id, req.body.months || 12);
+    sendSuccess(res, 200, 'Your membership has been renewed successfully', data);
+  } catch (err) { next(err); }
+};
+
+const updateMemberExpiration = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return next(errors.array());
+    const data = await service.updateMemberExpiration(Number(req.params.id), req.body.expires_at);
+    sendSuccess(res, 200, 'Membership expiration date updated', data);
   } catch (err) { next(err); }
 };
 
@@ -116,6 +150,7 @@ const getMyEvents = async (req, res, next) => {
 module.exports = {
   getExecutiveBoard, getExecutiveById,
   applyMembership, getMyProfile, updateMyProfile, uploadAvatar, getMyEvents,
-  listMembers, getMemberById, updateMemberStatus, toggleExecutive,
-  resetMemberPassword, deleteMember,
+  renewMyMembership,
+  listMembers, getMemberById, updateMemberById, updateMemberStatus, renewMember, updateMemberExpiration,
+  toggleExecutive, resetMemberPassword, deleteMember,
 };

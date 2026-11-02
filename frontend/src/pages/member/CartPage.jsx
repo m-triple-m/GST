@@ -122,7 +122,14 @@ export default function CartPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [pricesLoading, setPricesLoading] = useState(true);
+  const [memberStatus, setMemberStatus] = useState(null);
   const syncedRef = useRef(false); // prevent double-sync in StrictMode
+
+  useEffect(() => {
+    api.get('/members/me')
+      .then(res => setMemberStatus(res.data.data?.status || null))
+      .catch(() => setMemberStatus(null));
+  }, []);
 
   /**
    * On mount: fetch admin settings + each event's own prices,
@@ -469,13 +476,32 @@ export default function CartPage() {
                     </div>
                   )}
 
-                  <button
-                    onClick={() => navigate('/checkout')}
-                    className="w-full btn-teal px-8 py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 group shadow-xl shadow-teal-500/10 transition-all"
-                  >
-                    <span>Proceed to Checkout</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </button>
+                  {memberStatus === 'pending' ? (
+                    <div className="space-y-3">
+                      <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-left">
+                        <div className="flex items-center gap-2 text-amber-300 font-bold text-xs uppercase tracking-wider mb-1">
+                          <Clock className="w-3.5 h-3.5" /> Application Under Review
+                        </div>
+                        <p className="text-xs text-amber-200/90 leading-relaxed">
+                          Your membership application is pending admin approval. You cannot complete event bookings until accepted.
+                        </p>
+                      </div>
+                      <button
+                        disabled
+                        className="w-full bg-slate-800 text-slate-500 cursor-not-allowed px-8 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
+                      >
+                        <span>Checkout Locked (Pending Approval)</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => navigate('/checkout')}
+                      className="w-full btn-teal px-8 py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 group shadow-xl shadow-teal-500/10 transition-all"
+                    >
+                      <span>Proceed to Checkout</span>
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  )}
 
                   <div className="mt-8 pt-6 border-t border-white/5 flex items-center gap-3 text-slate-500">
                     <ShieldCheck className="w-5 h-5 text-teal-500" />

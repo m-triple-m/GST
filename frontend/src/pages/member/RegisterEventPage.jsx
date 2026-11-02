@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Calendar, MapPin, Clock, ArrowLeft, CheckCircle,
-  CreditCard, ChevronRight, User, Mail, Users, Loader2, ShieldCheck
+  CreditCard, ChevronRight, User, Mail, Users, Loader2, ShieldCheck,
+  ShieldAlert, Clock3
 } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +15,7 @@ export default function RegisterEventPage() {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [globalSettings, setGlobalSettings] = useState({});
+  const [memberStatus, setMemberStatus] = useState(null); // null = not loaded yet
 
   // Compute applicable ticket price: event-specific → global setting → ticket_cost → 0
   // Each piece is converted to Number first so "0.00" (truthy string but 0 as number)
@@ -49,12 +51,20 @@ export default function RegisterEventPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [eventRes, settingsRes] = await Promise.all([
+        const requests = [
           api.get(`/events/${id}`),
           api.get('/settings'),
-        ]);
+        ];
+        // If authenticated, also fetch the member profile to check status
+        if (isAuthenticated) {
+          requests.push(api.get('/members/me'));
+        }
+        const [eventRes, settingsRes, memberRes] = await Promise.all(requests);
         setEvent(eventRes.data.data);
         setGlobalSettings(settingsRes.data.data || {});
+        if (memberRes) {
+          setMemberStatus(memberRes.data.data?.status || null);
+        }
       } catch (err) {
         setEvent(null);
       } finally {
@@ -62,7 +72,7 @@ export default function RegisterEventPage() {
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, isAuthenticated]);
 
   if (loading) {
     return (
@@ -85,6 +95,62 @@ export default function RegisterEventPage() {
       </div>
     );
   }
+
+  // ── Pending member gate ──────────────────────────────────────────────
+  if (isAuthenticated && memberStatus === 'pending') {
+    return (
+      <div className="min-h-screen bg-slate-50 pt-20">
+        <div className="bg-slate-900 py-12 relative overflow-hidden">
+          <div className="absolute inset-0 seismic-pattern opacity-20" />
+          <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Link to={`/events/${id}`} className="inline-flex items-center gap-2 text-teal-400 text-sm font-semibold mb-6 hover:text-teal-300 transition-colors">
+              <ArrowLeft className="w-4 h-4" /> Back to Event
+            </Link>
+            <h1 className="text-3xl font-black text-white mb-2">Event Registration</h1>
+            <p className="text-slate-400">{event.title}</p>
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center text-center">
+          <div className="bg-white rounded-3xl border border-amber-200 shadow-sm p-10 w-full">
+            <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-6">
+              <Clock3 className="w-10 h-10 text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 mb-3">Application Pending Review</h2>
+            <p className="text-slate-500 leading-relaxed mb-6 text-sm max-w-md mx-auto">
+              Your membership application is currently <strong className="text-amber-600">under review</strong> by our admin team.
+              You will be able to register for events once your application has been approved.
+            </p>
+            <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-5 mb-8 text-left space-y-2">
+              <div className="flex items-center gap-2 text-xs font-black text-amber-800 uppercase tracking-widest mb-1">
+                <ShieldAlert className="w-4 h-4" /> What happens next?
+              </div>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                Our admin team reviews all applications within <strong>2–3 business days</strong>.
+                You'll receive an email at your registered address once your membership is activated.
+                After approval, you'll have full access to register for events at member pricing.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                to="/events"
+                className="px-6 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors"
+              >
+                Browse Events
+              </Link>
+              <Link
+                to="/dashboard"
+                className="px-6 py-3 rounded-xl bg-slate-900 text-white font-bold text-sm hover:bg-slate-800 transition-colors"
+              >
+                Go to Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e) => {
     e.preventDefault();

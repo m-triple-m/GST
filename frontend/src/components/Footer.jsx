@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Globe, Mail, MapPin, ExternalLink, ArrowUp, Link2, MessageSquare, Play } from 'lucide-react';
+import { Mail, MapPin, ExternalLink, ArrowUp, Link2, MessageSquare, Play } from 'lucide-react';
 
 const footerLinks = {
   'Navigation': [
@@ -51,15 +51,17 @@ export default function Footer() {
           {/* Brand column */}
           <div className="lg:col-span-2">
             {/* Logo */}
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-lg bg-teal-500 flex items-center justify-center shadow-lg">
-                <Globe className="w-5 h-5 text-white" strokeWidth={2} />
-              </div>
+            <Link to="/" className="flex items-center gap-3 mb-5 group w-fit">
+              <img 
+                src="/assets/new_logo.png" 
+                alt="GST Logo" 
+                className="w-11 h-11 object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-200" 
+              />
               <div>
                 <div className="text-white font-bold text-sm tracking-wide">GST</div>
                 <div className="text-slate-500 text-xs tracking-wider">Geophysical Society of Tulsa</div>
               </div>
-            </div>
+            </Link>
             <p className="text-slate-400 text-sm leading-relaxed mb-6 max-w-xs">
               The Geophysical Society of Tulsa has proudly served Oklahoma's geophysical community since 1947, 
               as the first local section of the Society of Exploration Geophysicists.

@@ -29,6 +29,7 @@ const TIER_STYLES = {
 
 const ENQUIRY_STATUS_STYLES = {
   new:       { label: 'New',       bg: 'bg-rose-100 text-rose-700' },
+  read:      { label: 'Read',      bg: 'bg-slate-100 text-slate-600' },
   in_review: { label: 'In Review', bg: 'bg-amber-100 text-amber-700' },
   approved:  { label: 'Approved',  bg: 'bg-emerald-100 text-emerald-700' },
   declined:  { label: 'Declined',  bg: 'bg-slate-100 text-slate-500' },
@@ -421,6 +422,19 @@ export default function AdminSponsors() {
       gstToast.error('Failed to update enquiry status.');
     } finally {
       setUpdatingEnquiryId(null);
+    }
+  };
+
+  const handleOpenEnquiry = async (enquiry) => {
+    setSelectedEnquiry(enquiry);
+    if (enquiry.status === 'new') {
+      try {
+        await api.patch(`/sponsors/enquiries/${enquiry.id}/status`, { status: 'read' });
+        setEnquiries(prev => prev.map(e => e.id === enquiry.id ? { ...e, status: 'read' } : e));
+        setSelectedEnquiry(prev => prev && prev.id === enquiry.id ? { ...prev, status: 'read' } : prev);
+      } catch (err) {
+        console.error('Failed to mark enquiry as read', err);
+      }
     }
   };
 
@@ -876,6 +890,7 @@ export default function AdminSponsors() {
               {[
                 { id: 'all',       label: 'All Enquiries', count: enquiries.length },
                 { id: 'new',       label: 'New',           count: enquiries.filter(e => e.status === 'new').length },
+                { id: 'read',      label: 'Read',          count: enquiries.filter(e => e.status === 'read').length },
                 { id: 'in_review', label: 'In Review',     count: enquiries.filter(e => e.status === 'in_review').length },
                 { id: 'approved',  label: 'Approved',      count: enquiries.filter(e => e.status === 'approved').length },
                 { id: 'declined',  label: 'Declined',      count: enquiries.filter(e => e.status === 'declined').length },
@@ -921,7 +936,7 @@ export default function AdminSponsors() {
                   return (
                     <div
                       key={enquiry.id}
-                      onClick={() => setSelectedEnquiry(enquiry)}
+                      onClick={() => handleOpenEnquiry(enquiry)}
                       className="px-8 py-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-4 min-w-0 flex-1 mr-4">
@@ -930,9 +945,12 @@ export default function AdminSponsors() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-black text-slate-900 truncate">
+                            <span className={`text-sm truncate ${enquiry.status === 'new' ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
                               {enquiry.company_name}
                             </span>
+                            {enquiry.status === 'new' && (
+                              <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" title="New unread enquiry" />
+                            )}
                             <span className="text-xs text-slate-500 font-semibold">
                               · {enquiry.contact_name}
                             </span>
@@ -956,7 +974,7 @@ export default function AdminSponsors() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedEnquiry(enquiry);
+                            handleOpenEnquiry(enquiry);
                           }}
                           className="px-3.5 py-1.5 bg-slate-100 hover:bg-amber-50 hover:text-amber-800 text-slate-600 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
                         >
@@ -1006,7 +1024,7 @@ export default function AdminSponsors() {
                 <div className="bg-slate-50 p-3 rounded-2xl flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Change Status</span>
                   <div className="flex items-center gap-1.5">
-                    {['new', 'in_review', 'approved', 'declined'].map((st) => (
+                    {['new', 'read', 'in_review', 'approved', 'declined'].map((st) => (
                       <button
                         key={st}
                         onClick={() => handleUpdateEnquiryStatus(selectedEnquiry.id, st)}

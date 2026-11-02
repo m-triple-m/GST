@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS members (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  member_id       VARCHAR(50) NULL UNIQUE,          -- permanent custom/Wild Apricot 8-digit membership ID
   user_id         INT UNSIGNED NULL UNIQUE,         -- optional; linked if applicant later creates an account
   email           VARCHAR(255) NOT NULL UNIQUE,     -- owns the email directly; no JOIN to users needed
   first_name      VARCHAR(100) NOT NULL,
@@ -35,7 +36,10 @@ CREATE TABLE IF NOT EXISTS members (
   home_state      VARCHAR(100),
   home_zip        VARCHAR(30),
   avatar_url      VARCHAR(500),
-  privacy_policy  TINYINT(1) DEFAULT 0,
+  privacy_policy      TINYINT(1) DEFAULT 0,
+  event_announcements TINYINT(1) DEFAULT 1,
+  newsletter_opt_in   TINYINT(1) DEFAULT 1,
+  directory_visible   TINYINT(1) DEFAULT 1,
   linkedin_url    VARCHAR(500),
   company         VARCHAR(255),
   company_name    VARCHAR(255),
@@ -57,18 +61,21 @@ CREATE TABLE IF NOT EXISTS members (
   motivation      TEXT,
   referred        TINYINT(1) DEFAULT 0,
   tier            ENUM('student','professional','corporate') DEFAULT 'professional',
-  status          ENUM('pending','active','inactive') DEFAULT 'pending',
+  status          ENUM('pending','active','inactive','expired') DEFAULT 'pending',
   is_executive    TINYINT(1) DEFAULT 0,
   exec_position   VARCHAR(100),
   exec_bio        TEXT,
   exec_photo_url  VARCHAR(500),
   joined_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+  expires_at      DATETIME NULL,
   updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_status (status),
   INDEX idx_tier (tier),
   INDEX idx_is_executive (is_executive),
+  INDEX idx_expires_at (expires_at),
   INDEX idx_email (email),
+  INDEX idx_member_id (member_id),
   INDEX idx_seg_status (seg_status)
 );
 
@@ -229,7 +236,7 @@ CREATE TABLE IF NOT EXISTS sponsor_enquiries (
   phone         VARCHAR(50),
   tier_interest VARCHAR(50),
   message       TEXT,
-  status        ENUM('new','in_review','approved','declined') DEFAULT 'new',
+  status        ENUM('new','read','in_review','approved','declined') DEFAULT 'new',
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_status (status)
 );

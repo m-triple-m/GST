@@ -112,8 +112,8 @@ export default function SponsorPage() {
         <div className="max-w-7xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {benefits.map((b) => (
             <div key={b.title} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm group hover:border-teal-500/30 transition-all duration-300">
-               <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-teal-500 group-hover:text-white transition-all duration-300">
-                  <b.icon className="w-6 h-6 text-teal-600 transition-colors" />
+               <div className="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-teal-500 transition-all duration-300">
+                  <b.icon className="w-6 h-6 text-teal-600 group-hover:text-white transition-colors duration-300" />
                </div>
                <h3 className="text-lg font-bold text-slate-900 mb-3">{b.title}</h3>
                <p className="text-slate-500 text-sm leading-relaxed">{b.desc}</p>

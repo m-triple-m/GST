@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Calendar, Settings,
-  Globe, Menu, X, LogOut, UserCog, Building2, Mail
+  Menu, X, LogOut, UserCog, Building2, Mail, History
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,6 +12,7 @@ const BASE_SIDEBAR_ITEMS = [
   { name: 'Events',            icon: Calendar,        path: '/admin/events' },
   { name: 'Sponsors',          icon: Building2,       path: '/admin/sponsors' },
   { name: 'Contact Inquiries', icon: Mail,            path: '/admin/contact-inquiries' },
+  { name: 'Change Logs',       icon: History,         path: '/admin/changelogs' },
   { name: 'Admin Accounts',    icon: UserCog,         path: '/admin/accounts' },
   { name: 'Settings',          icon: Settings,        path: '/admin/settings' },
 ];
@@ -70,15 +71,17 @@ export default function AdminLayout() {
       {/* ── Sidebar ── */}
       <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-slate-950 text-white transition-all duration-300 flex flex-col sticky top-0 h-screen z-30`}>
         <div className="p-6 border-b border-white/5 flex items-center justify-between">
-          <div className={`flex items-center gap-3 ${!sidebarOpen && 'hidden'}`}>
-            <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center shadow-lg">
-              <Globe className="w-5 h-5 text-white" />
-            </div>
+          <Link to="/admin" className={`flex items-center gap-3 group ${!sidebarOpen && 'hidden'}`}>
+            <img 
+              src="/assets/new_logo.png" 
+              alt="GST Logo" 
+              className="w-8 h-8 object-contain drop-shadow shrink-0 group-hover:scale-105 transition-transform" 
+            />
             <div>
-              <div className="font-black text-sm tracking-tight leading-none">GST ADMIN</div>
+              <div className="font-black text-sm tracking-tight leading-none text-white">GST ADMIN</div>
               <div className="text-[9px] text-teal-400 font-bold uppercase tracking-widest mt-1">Command Center</div>
             </div>
-          </div>
+          </Link>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1.5 hover:bg-white/5 rounded-lg text-slate-400"

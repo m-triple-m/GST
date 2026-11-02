@@ -53,13 +53,40 @@ const sendEventReminders = async () => {
   }
 };
 
-// Schedule the job to run every hour
+const checkMembershipExpirations = async () => {
+  console.log('[Cron] Running scheduled job: checkMembershipExpirations');
+  try {
+    const [result] = await db.query(`
+      UPDATE members 
+      SET status = 'expired' 
+      WHERE status = 'active' 
+        AND expires_at IS NOT NULL 
+        AND expires_at < NOW()
+    `);
+    if (result.affectedRows > 0) {
+      console.log(`[Cron] Marked ${result.affectedRows} memberships as expired.`);
+    }
+  } catch (err) {
+    console.error('[Cron] Error in checkMembershipExpirations job:', err);
+  }
+};
+
+// Schedule background jobs
 const initCronJobs = () => {
+  // Check membership expirations immediately on startup
+  checkMembershipExpirations();
+
+  // Run membership expiration check daily at midnight (and every 6 hours)
+  cron.schedule('0 */6 * * *', checkMembershipExpirations);
+  console.log('[Cron] Membership expiration job scheduled (runs every 6 hours).');
+
+  // Event reminders run every hour
   cron.schedule('0 * * * *', sendEventReminders);
   console.log('[Cron] Event reminder job scheduled (runs every hour).');
 };
 
 module.exports = {
   initCronJobs,
-  sendEventReminders // Exported for manual testing if needed
+  sendEventReminders,
+  checkMembershipExpirations
 };

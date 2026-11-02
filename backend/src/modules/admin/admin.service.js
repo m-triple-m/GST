@@ -14,9 +14,19 @@ const getAuditLog = async (query) => {
   const page   = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const limit  = !isNaN(parsedLimit) && parsedLimit > 0 ? Math.min(100, parsedLimit) : 20;
   const offset = (page - 1) * limit;
+
+  const filters = {
+    limit,
+    offset,
+    action_filter: query.action_filter || null,
+    actor_id:      query.actor_id ? Number(query.actor_id) : null,
+    date_from:     query.date_from || null,
+    date_to:       query.date_to   || null,
+  };
+
   const [logs, total] = await Promise.all([
-    repo.getAuditLog({ limit, offset }),
-    repo.countAuditLog(),
+    repo.getAuditLog(filters),
+    repo.countAuditLog(filters),
   ]);
   return { logs, pagination: buildPagination(page, limit, total) };
 };

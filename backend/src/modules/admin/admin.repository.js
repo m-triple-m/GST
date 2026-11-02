@@ -31,27 +31,84 @@ const getDashboardStats = async () => {
   };
 };
 
-const getAuditLog = async ({ limit, offset }) => {
+const getAuditLog = async ({ limit, offset, action_filter, actor_id, date_from, date_to }) => {
+  const conditions = ['1=1'];
+  const params = [];
+
+  if (action_filter) {
+    conditions.push('a.action LIKE ?');
+    params.push(`%${action_filter}%`);
+  }
+  if (actor_id) {
+    conditions.push('a.user_id = ?');
+    params.push(actor_id);
+  }
+  if (date_from) {
+    conditions.push('a.created_at >= ?');
+    params.push(date_from);
+  }
+  if (date_to) {
+    conditions.push('a.created_at <= ?');
+    params.push(date_to);
+  }
+
+  const where = conditions.join(' AND ');
+
   const [rows] = await db.execute(
-    `SELECT a.*, u.email as user_email
+    `SELECT a.id, a.user_id, a.action, a.target, a.meta, a.created_at,
+            u.email as actor_email,
+            COALESCE(CONCAT(m.first_name, ' ', m.last_name), u.email) as actor_name,
+            u.role as actor_role
      FROM audit_logs a
      LEFT JOIN users u ON u.id = a.user_id
+     LEFT JOIN members m ON m.user_id = a.user_id
+     WHERE ${where}
      ORDER BY a.created_at DESC
-     LIMIT ${Number(limit)} OFFSET ${Number(offset)}`
+     LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
+    params
   );
   return rows;
 };
 
-const countAuditLog = async () => {
-  const [[{total}]] = await db.execute('SELECT COUNT(*) as total FROM audit_logs');
+const countAuditLog = async ({ action_filter, actor_id, date_from, date_to } = {}) => {
+  const conditions = ['1=1'];
+  const params = [];
+
+  if (action_filter) {
+    conditions.push('a.action LIKE ?');
+    params.push(`%${action_filter}%`);
+  }
+  if (actor_id) {
+    conditions.push('a.user_id = ?');
+    params.push(actor_id);
+  }
+  if (date_from) {
+    conditions.push('a.created_at >= ?');
+    params.push(date_from);
+  }
+  if (date_to) {
+    conditions.push('a.created_at <= ?');
+    params.push(date_to);
+  }
+
+  const where = conditions.join(' AND ');
+  const [[{ total }]] = await db.execute(
+    `SELECT COUNT(*) as total FROM audit_logs a WHERE ${where}`,
+    params
+  );
   return total;
 };
 
 const writeAuditLog = async (userId, action, target, meta) => {
-  await db.execute(
-    'INSERT INTO audit_logs (user_id, action, target, meta) VALUES (?,?,?,?)',
-    [userId || null, action, target || null, meta ? JSON.stringify(meta) : null]
-  );
+  try {
+    await db.execute(
+      'INSERT INTO audit_logs (user_id, action, target, meta) VALUES (?,?,?,?)',
+      [userId || null, action, target || null, meta ? JSON.stringify(meta) : null]
+    );
+  } catch (err) {
+    // Never let logging failures crash the app
+    console.error('[AuditLog] Write failed:', err.message);
+  }
 };
 
 const listAdminAccounts = async () => {
@@ -237,6 +294,7 @@ const getRevenueAnalytics = async ({ timeframe = 'all', event_id = null, payment
   `);
 
   // 6. Recent Paid Transactions (Cash & Card)
+  // 6. Recent Transactions & Registrations
   const [recentTransactions] = await db.execute(`
     SELECT 
       er.id as id,
@@ -247,15 +305,38 @@ const getRevenueAnalytics = async ({ timeframe = 'all', event_id = null, payment
       er.attendee_type,
       e.id as event_id,
       e.title as source_title,
+      e.event_date,
       er.amount_paid,
       er.payment_method,
       er.payment_status,
       er.registered_at as transaction_date
     FROM event_registrations er
     JOIN events e ON er.event_id = e.id
-    WHERE er.payment_status = 'paid'
     ORDER BY er.registered_at DESC
-    LIMIT 15
+    LIMIT 20
+  `);
+
+  // 7. Pending Attendee Registrations for Fast Check-In / Payment Confirmation
+  const [pendingRegistrations] = await db.execute(`
+    SELECT 
+      er.id as id,
+      er.attendee_name,
+      er.attendee_email,
+      er.company,
+      er.attendee_type,
+      er.guests,
+      e.id as event_id,
+      e.title as event_title,
+      e.event_date,
+      er.amount_paid,
+      er.payment_method,
+      er.payment_status,
+      er.registered_at
+    FROM event_registrations er
+    JOIN events e ON er.event_id = e.id
+    WHERE er.payment_status = 'pending'
+    ORDER BY er.registered_at DESC
+    LIMIT 10
   `);
 
   const totalRevenue = Number(eventTotals.total_event_revenue) + Number(donationTotals.total_donation_revenue);
@@ -270,6 +351,7 @@ const getRevenueAnalytics = async ({ timeframe = 'all', event_id = null, payment
       events_revenue: Number(eventTotals.total_event_revenue),
       donations_revenue: Number(donationTotals.total_donation_revenue),
       pending_revenue: Number(eventTotals.pending_event_revenue),
+      pending_amount: Number(eventTotals.pending_event_revenue),
       paid_bookings_count: Number(eventTotals.paid_bookings_count),
       pending_bookings_count: Number(eventTotals.pending_bookings_count),
       completed_donations_count: Number(donationTotals.completed_donations_count),
@@ -280,6 +362,7 @@ const getRevenueAnalytics = async ({ timeframe = 'all', event_id = null, payment
     events_breakdown: eventsBreakdown,
     member_tiers: memberTiers,
     recent_transactions: recentTransactions,
+    pending_registrations: pendingRegistrations,
   };
 };
 
