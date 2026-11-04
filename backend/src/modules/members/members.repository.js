@@ -93,6 +93,38 @@ const countMembers = async ({ search, status, tier, seg_status }) => {
   return rows[0].total;
 };
 
+const getAllForExport = async ({ search, status, tier, seg_status, sort, order } = {}) => {
+  await syncExpiredMembers();
+  const allowedSort  = ['joined_at', 'expires_at', 'member_id', 'first_name', 'last_name', 'status', 'company_name', 'tier', 'seg_status'];
+  const allowedOrder = ['ASC', 'DESC'];
+  const sortCol  = allowedSort.includes(sort) ? sort : 'joined_at';
+  const sortDir  = allowedOrder.includes(order?.toUpperCase()) ? order.toUpperCase() : 'DESC';
+
+  let sql = `SELECT m.id, m.member_id, m.first_name, m.last_name, m.nickname, m.email, m.phone,
+                    COALESCE(m.company_name, m.company) AS company, m.company_name, m.job_title,
+                    m.board_position, m.home_street, m.home_city, m.home_state, m.home_zip,
+                    m.company_street, m.company_city, m.company_state, m.company_zip, m.company_phone,
+                    m.seg_status, m.tgs_member, m.education, m.university, m.degree, m.major,
+                    m.event_announcements, m.newsletter_opt_in, m.directory_visible, m.tier, m.status, m.joined_at, m.expires_at, m.is_executive
+             FROM members m
+             WHERE 1=1`;
+  const params = [];
+
+  if (search) {
+    sql += ' AND (m.member_id LIKE ? OR m.first_name LIKE ? OR m.last_name LIKE ? OR m.nickname LIKE ? OR m.email LIKE ? OR m.company LIKE ? OR m.company_name LIKE ? OR m.job_title LIKE ?)';
+    const like = `%${search}%`;
+    params.push(like, like, like, like, like, like, like, like);
+  }
+  if (status)     { sql += ' AND m.status = ?';     params.push(status); }
+  if (tier)       { sql += ' AND m.tier = ?';       params.push(tier); }
+  if (seg_status) { sql += ' AND m.seg_status = ?'; params.push(seg_status); }
+
+  sql += ` ORDER BY m.${sortCol} ${sortDir}`;
+
+  const [rows] = await db.execute(sql, params);
+  return rows;
+};
+
 const listMembers = async ({ search, status, tier, seg_status, sort, order, limit, offset }) => {
   await syncExpiredMembers();
   const allowedSort  = ['joined_at', 'expires_at', 'member_id', 'first_name', 'last_name', 'status', 'company_name', 'tier', 'seg_status'];
@@ -521,6 +553,7 @@ const getMyRegisteredEvents = async (userId) => {
 };
 
 module.exports = {
+  getAllForExport,
   getMemberByMemberId,
   getExecutiveBoard, getExecutiveById, getMemberByUserId, getMemberByEmail,
   countMembers, listMembers, getMemberById,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Users, Search,
+  Users, Search, Download, FileText,
   CheckCircle2, XCircle, AlertCircle, Star, StarOff,
   ChevronLeft, ChevronRight, RefreshCw, Loader2, Trash2,
   ShieldAlert, ShieldCheck, X, KeyRound, Copy, Eye, Pencil,
@@ -10,6 +10,7 @@ import {
 import api from '../../api';
 import { gstToast } from '../../utils/toast';
 import { US_STATES } from '../public/membership.config';
+import MembershipCertificateModal from '../../components/modals/MembershipCertificateModal';
 
 // ─────────────────────────────────────────────────────────
 //  Confirm Modal
@@ -75,7 +76,7 @@ function ConfirmModal({ open, onClose, onConfirm, title, message, confirmLabel =
 // ─────────────────────────────────────────────────────────
 //  Full Member Details Modal
 // ─────────────────────────────────────────────────────────
-function MemberDetailsModal({ member, onClose, onRenew, onActivate, onDeactivate, onEdit }) {
+function MemberDetailsModal({ member, onClose, onRenew, onActivate, onDeactivate, onEdit, onViewCert }) {
   if (!member) return null;
 
   let educationList = [];
@@ -899,6 +900,8 @@ export default function AdminMembers() {
   const [pagination, setPagination]       = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading]             = useState(true);
   const [acting, setActing]               = useState({});
+  const [exporting, setExporting]         = useState(false);
+  const [certModal, setCertModal]         = useState({ open: false, member: null });
 
   // ── Modals state ──────────────────────────────────────
   const [selectedMemberDetails, setSelectedMemberDetails] = useState(null);
@@ -911,6 +914,39 @@ export default function AdminMembers() {
 
   const showConfirm = (opts) => setModal({ open: true, ...opts });
   const closeModal  = () => setModal((m) => ({ ...m, open: false }));
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (search)       params.set('search', search);
+      if (statusFilter) params.set('status', statusFilter);
+      if (tierFilter)   params.set('tier',   tierFilter);
+      if (segFilter)    params.set('seg_status', segFilter);
+
+      const response = await api.get(`/members/export?${params}`, {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.setAttribute('download', `GST_Members_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      gstToast.success('Member list exported to CSV successfully.');
+    } catch (err) {
+      console.error('Export failed:', err);
+      gstToast.error(err.response?.data?.message || 'Failed to export members.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Sync with URL query params if changed externally
   useEffect(() => {
@@ -1147,6 +1183,7 @@ export default function AdminMembers() {
           onActivate={confirmActivate}
           onDeactivate={confirmDeactivate}
           onEdit={(m) => setEditingMember(m)}
+          onViewCert={(m) => setCertModal({ open: true, member: m })}
         />
       )}
 
@@ -1218,14 +1255,25 @@ export default function AdminMembers() {
             <span className="mx-2">/</span>
             <span className="text-slate-900">Member Directory</span>
           </div>
-          <button
-            onClick={fetchMembers}
-            disabled={loading}
-            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportCSV}
+              disabled={exporting}
+              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
+              title="Export filtered members to CSV"
+            >
+              {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-400" /> : <Download className="w-3.5 h-3.5 text-teal-400" />}
+              <span>{exporting ? 'Exporting...' : 'Export CSV'}</span>
+            </button>
+            <button
+              onClick={fetchMembers}
+              disabled={loading}
+              className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </header>
 
         <div className="p-8 space-y-6 animate-fade-in">
@@ -1541,6 +1589,11 @@ export default function AdminMembers() {
 
         </div>
       </main>
+      <MembershipCertificateModal
+        open={certModal.open}
+        onClose={() => setCertModal({ open: false, member: null })}
+        member={certModal.member}
+      />
     </>
   );
 }

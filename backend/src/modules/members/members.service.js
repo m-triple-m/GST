@@ -230,7 +230,123 @@ const resetMemberPassword = async (id) => {
 
 const getMyRegisteredEvents = async (userId) => repo.getMyRegisteredEvents(userId);
 
+const exportMembersCSV = async (query = {}) => {
+  const members = await repo.getAllForExport(query);
+
+  const escape = (val) => {
+    if (val === null || val === undefined) return '""';
+    const s = String(val).replace(/"/g, '""');
+    return `"${s}"`;
+  };
+
+  const formatDate = (val) => {
+    if (!val) return '';
+    try {
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return String(val);
+      return d.toISOString().slice(0, 10);
+    } catch {
+      return String(val);
+    }
+  };
+
+  const headers = [
+    'Member ID',
+    'First Name',
+    'Last Name',
+    'Preferred Name',
+    'Email',
+    'Phone',
+    'Membership Tier',
+    'Status',
+    'Joined Date',
+    'Expiration Date',
+    'Executive Board',
+    'Board Position',
+    'Company / Organization',
+    'Job Title',
+    'SEG Status',
+    'TGS Member',
+    'Home Street',
+    'Home City',
+    'Home State',
+    'Home ZIP',
+    'Workplace Street',
+    'Workplace City',
+    'Workplace State',
+    'Workplace ZIP',
+    'Workplace Phone',
+    'University',
+    'Degree',
+    'Major',
+    'Event Announcements',
+    'Newsletter Opt-in',
+    'Directory Visible',
+  ];
+
+  const csvRows = [headers.map(escape).join(',')];
+
+  for (const m of members) {
+    let uni = m.university || '';
+    let deg = m.degree || '';
+    let maj = m.major || '';
+
+    if (m.education) {
+      let edList = [];
+      if (Array.isArray(m.education)) {
+        edList = m.education;
+      } else if (typeof m.education === 'string') {
+        try { edList = JSON.parse(m.education); } catch {}
+      }
+      if (Array.isArray(edList) && edList.length > 0) {
+        uni = edList.map(e => e.university || '').filter(Boolean).join('; ');
+        deg = edList.map(e => e.degree || '').filter(Boolean).join('; ');
+        maj = edList.map(e => e.major || '').filter(Boolean).join('; ');
+      }
+    }
+
+    const row = [
+      m.member_id || m.id,
+      m.first_name || '',
+      m.last_name || '',
+      m.nickname || '',
+      m.email || '',
+      m.tier || '',
+      m.status || '',
+      formatDate(m.joined_at),
+      formatDate(m.expires_at),
+      m.is_executive ? 'Yes' : 'No',
+      m.board_position || '',
+      m.company || m.company_name || '',
+      m.job_title || '',
+      m.seg_status || '',
+      m.tgs_member ? 'Yes' : 'No',
+      m.home_street || '',
+      m.home_city || '',
+      m.home_state || '',
+      m.home_zip || '',
+      m.company_street || '',
+      m.company_city || '',
+      m.company_state || '',
+      m.company_zip || '',
+      m.company_phone || '',
+      uni,
+      deg,
+      maj,
+      m.event_announcements ? 'Yes' : 'No',
+      m.newsletter_opt_in ? 'Yes' : 'No',
+      m.directory_visible ? 'Yes' : 'No',
+    ];
+
+    csvRows.push(row.map(escape).join(','));
+  }
+
+  // Prepend UTF-8 BOM for Microsoft Excel compatibility
+  return '\uFEFF' + csvRows.join('\r\n');
+};
+
 module.exports = {
+  exportMembersCSV,
   getExecutiveBoard, getExecutiveById, getMyProfile, updateMyProfile,
   submitApplication, listMembers, getMemberById, updateMemberById, updateMemberStatus,
   renewMember, renewMyMembership, updateMemberExpiration,

@@ -4,11 +4,12 @@ import {
   Bell, Search, BookOpen, HandHeart, MessageSquare, LifeBuoy,
   MoreHorizontal, RefreshCcw, Globe, ArrowUpRight, Clock,
   Calendar, MapPin, CheckCircle2, Loader2, Ticket, ShieldAlert,
-  RefreshCw, X
+  RefreshCw, X, Award, FileText
 } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { gstToast } from '../../utils/toast';
+import MembershipCertificateModal from '../../components/modals/MembershipCertificateModal';
 
 /* ── Helpers ─────────────────────────────────────────────── */
 function safeDate(val) {
@@ -199,7 +200,7 @@ function MyEventsSection() {
 }
 
 /* ── Membership Status & Renewal Components ────────────────── */
-function MembershipStatusCard({ profile, loading, onRenewClick }) {
+function MembershipStatusCard({ profile, loading, onRenewClick, onViewCert }) {
   if (loading) {
     return (
       <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex items-center justify-center gap-3 py-10 text-slate-400">
@@ -289,6 +290,27 @@ function MembershipStatusCard({ profile, loading, onRenewClick }) {
         <RefreshCw className="w-4 h-4" />
         {isExpired ? 'Renew Membership (+1 Year)' : 'Renew / Extend (+1 Year)'}
       </button>
+
+      {isActive && (
+        <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => onViewCert?.('certificate')}
+            className="py-2.5 px-3 rounded-xl border border-slate-200 hover:border-teal-500 hover:bg-teal-50 text-slate-700 hover:text-teal-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+          >
+            <Award className="w-3.5 h-3.5 text-teal-600" />
+            <span>Certificate</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewCert?.('receipt')}
+            className="py-2.5 px-3 rounded-xl border border-slate-200 hover:border-teal-500 hover:bg-teal-50 text-slate-700 hover:text-teal-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+          >
+            <FileText className="w-3.5 h-3.5 text-teal-600" />
+            <span>Tax Receipt</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -381,6 +403,7 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [renewModalOpen, setRenewModalOpen] = useState(false);
+  const [certModalOpen, setCertModalOpen]   = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -484,6 +507,7 @@ export default function DashboardPage() {
               profile={profile}
               loading={loadingProfile}
               onRenewClick={() => setRenewModalOpen(true)}
+              onViewCert={() => setCertModalOpen(true)}
             />
 
             {/* Quick Links */}
@@ -517,6 +541,13 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Membership Certificate & Tax Receipt Modal */}
+      <MembershipCertificateModal
+        open={certModalOpen}
+        onClose={() => setCertModalOpen(false)}
+        member={profile}
+      />
 
       {/* Renewal Modal */}
       <RenewModal

@@ -58,6 +58,18 @@ const uploadAvatar = async (req, res, next) => {
 
 // ── Admin ─────────────────────────────────────────────────
 
+const exportMembers = async (req, res, next) => {
+  try {
+    const csvData = await service.exportMembersCSV(req.query);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="GST_Members_${dateStr}.csv"`);
+    res.status(200).send(csvData);
+  } catch (err) {
+    next(err);
+  }
+};
+
 const listMembers = async (req, res, next) => {
   try {
     const errors = validationResult(req);
@@ -148,6 +160,7 @@ const getMyEvents = async (req, res, next) => {
 };
 
 module.exports = {
+  exportMembers,
   getExecutiveBoard, getExecutiveById,
   applyMembership, getMyProfile, updateMyProfile, uploadAvatar, getMyEvents,
   renewMyMembership,

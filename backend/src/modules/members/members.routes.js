@@ -33,6 +33,8 @@ router.get('/me/events', verifyToken, ctrl.getMyEvents);
 
 
 // ── Admin ─────────────────────────────────────────────────
+// GET    /api/members/export
+router.get('/export', verifyToken, requireRole('admin', 'executive'), ctrl.exportMembers);
 // GET    /api/members
 router.get('/', verifyToken, requireRole('admin', 'executive'), listQueryValidation, ctrl.listMembers);
 // GET    /api/members/:id
